@@ -1,11 +1,9 @@
 import datetime
 import pandas as pd
-import tushare as ts
+import ts as ts
 import os
 
-from app.api.engine import TAMP_SQL, tamp_product_engine, tamp_fund_engine, tamp_order_engine, tamp_user_engine, \
-    paipai_engine, tamp_research_engine, config, env, jydb_yansheng_engine, tamp_research_engine_stock_analysis
-
+from engine import TAMP_SQL, stock_engine
 
 def backup_db(table):
     now = datetime.datetime.now()
@@ -25,7 +23,7 @@ def backup_db(table):
 
 # basic_stock_info
 def get_all_stock_code():
-    with TAMP_SQL(tamp_fund_engine) as tamp_fund:
+    with TAMP_SQL(stock_engine) as tamp_fund:
         tamp_fund_session = tamp_fund.session
         sql = """SELECT stock_code FROM basic_stock_info"""
         cur = tamp_fund_session.execute(sql)
@@ -35,7 +33,7 @@ def get_all_stock_code():
         return data
 
 def get_all_stock():
-    with TAMP_SQL(tamp_fund_engine) as tamp_fund:
+    with TAMP_SQL(stock_engine) as tamp_fund:
         tamp_fund_session = tamp_fund.session
         sql = """SELECT stock_code, stock_name FROM basic_stock_info"""
         cur = tamp_fund_session.execute(sql)
@@ -46,7 +44,7 @@ def get_all_stock():
 # stock_daily_price
 def delete_stock_daily_price(stock_code, rcd_date):
     table_name = get_stock_price_table_name(stock_code)
-    with TAMP_SQL(tamp_fund_engine) as tamp_fund:
+    with TAMP_SQL(stock_engine) as tamp_fund:
         tamp_fund_session = tamp_fund.session
         sql = """DELETE FROM {} WHERE stock_code='{}' and trade_date='{}'""".format(table_name, stock_code, rcd_date)
         cur = tamp_fund_session.execute(sql)
@@ -55,7 +53,7 @@ def get_stock_daily_price_as_df(stock_code):
     table_name = get_stock_price_table_name(stock_code)
     if table_name is None:
         return pd.DataFrame(columns=['id', 'stock_code', 'trade_date', 'open', 'high', 'low', 'close', 'chg', 'vol', 'amount'])
-    with TAMP_SQL(tamp_fund_engine) as tamp_fund:
+    with TAMP_SQL(stock_engine) as tamp_fund:
         tamp_fund_session = tamp_fund.session
         sql = """SELECT `id`, `stock_code`, `trade_date`, `open`, `high`, `low`, `close`, `chg`, `vol`, `amount` FROM {} WHERE stock_code='{}' order by trade_date asc""".format(table_name, stock_code)
         cur = tamp_fund_session.execute(sql)
@@ -79,26 +77,26 @@ def get_stock_price_table_name(stock_code):
 
 # stock_index
 def delete_stock_index(index_code):
-    with TAMP_SQL(tamp_fund_engine) as tamp_fund:
+    with TAMP_SQL(stock_engine) as tamp_fund:
         tamp_fund_session = tamp_fund.session
         sql = """DELETE FROM stock_index where index_code='{}'""".format(index_code)
         tamp_fund_session.execute(sql)
 
 def delete_stock_index_rel(index_code):
-    with TAMP_SQL(tamp_fund_engine) as tamp_fund:
+    with TAMP_SQL(stock_engine) as tamp_fund:
         tamp_fund_session = tamp_fund.session
         sql = """DELETE FROM stock_index_rel where index_code='{}'""".format(index_code)
         tamp_fund_session.execute(sql)
 
 def delete_index_daily_price(index_code, market, rcd_date):
     table_name = 'index_trade_daily_{}'.format(market.lower())
-    with TAMP_SQL(tamp_fund_engine) as tamp_fund:
+    with TAMP_SQL(stock_engine) as tamp_fund:
         tamp_fund_session = tamp_fund.session
         sql = """DELETE FROM {} WHERE index_code='{}' and trade_date='{}'""".format(table_name, index_code, rcd_date)
         cur = tamp_fund_session.execute(sql)
 
 def get_all_index():
-    with TAMP_SQL(tamp_fund_engine) as tamp_fund:
+    with TAMP_SQL(stock_engine) as tamp_fund:
         tamp_fund_session = tamp_fund.session
         sql = """SELECT * from stock_index"""
         cur = tamp_fund_session.execute(sql)
@@ -106,7 +104,7 @@ def get_all_index():
 
 def get_index_daily_price_as_df(index_code, market):
     table_name = get_index_price_table_name(market)
-    with TAMP_SQL(tamp_fund_engine) as tamp_fund:
+    with TAMP_SQL(stock_engine) as tamp_fund:
         tamp_fund_session = tamp_fund.session
         sql = """SELECT `id`, `index_code`, `trade_date`, `open`, `high`, `low`, `close`, `chg`, `vol`, `amount` FROM {} WHERE index_code='{}' order by trade_date asc""".format(table_name, index_code)
         cur = tamp_fund_session.execute(sql)
@@ -128,20 +126,20 @@ def get_index_price_table_name(market):
 
 # etf
 def get_all_etf():
-    with TAMP_SQL(tamp_fund_engine) as tamp_fund:
+    with TAMP_SQL(stock_engine) as tamp_fund:
         tamp_fund_session = tamp_fund.session
         sql = """SELECT * from basic_etf_info"""
         cur = tamp_fund_session.execute(sql)
         return cur.fetchall()
 
 def delete_etf_daily_price(etf_code, rcd_date):
-    with TAMP_SQL(tamp_fund_engine) as tamp_fund:
+    with TAMP_SQL(stock_engine) as tamp_fund:
         tamp_fund_session = tamp_fund.session
         sql = """DELETE FROM etf_trade_daily WHERE stock_code='{}' and trade_date='{}'""".format(etf_code, rcd_date)
         cur = tamp_fund_session.execute(sql)
 
 def get_etf_daily_price_as_df(etf_code):
-    with TAMP_SQL(tamp_fund_engine) as tamp_fund:
+    with TAMP_SQL(stock_engine) as tamp_fund:
         tamp_fund_session = tamp_fund.session
         sql = """SELECT `id`, `stock_code`, `trade_date`, `open`, `high`, `low`, `close`, `chg`, `vol`, `amount` FROM etf_trade_daily WHERE stock_code='{}' order by trade_date asc""".format(etf_code)
         cur = tamp_fund_session.execute(sql)

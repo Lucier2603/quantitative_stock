@@ -1,21 +1,20 @@
 import time
 
-from jqdatasdk import *
 
-from app.api.engine import tamp_fund_engine, TAMP_SQL
-from app.wind.stock.jk_data import get_all_stock_code, delete_stock_daily_price, delete_stock_index, \
+from engine import stock_engine, TAMP_SQL
+from ts.stock_data_service import get_all_stock_code, delete_stock_daily_price, delete_stock_index, \
     delete_stock_index_rel, get_all_index, delete_index_daily_price, get_all_etf, delete_etf_daily_price
-from app.wind.stock.jk_model import BasicStockInfo, StockTradeDaily00x, StockTradeDaily30x, \
+from ts.stock_model import BasicStockInfo, StockTradeDaily00x, StockTradeDaily30x, \
     StockTradeDaily60x, StockTradeDaily83x, StockTradeDaily688, StockIndex, StockIndexRel, IndexTradeDailyCSI, \
     IndexTradeDailySSE, IndexTradeDailySZSE, BasicETFInfo, ETFTradeDaily
 import pandas as pd
 import datetime
-import tushare as ts
+import tushare
 
 
 
 '''
-更新每日股票价格信息 tushare
+更新每日股票价格信息 ts
 '''
 # 更新每日
 def update_month_stock_price_ts(p_start_date, p_end_date):
@@ -34,7 +33,7 @@ def update_month_stock_price_ts(p_start_date, p_end_date):
     print(1)
 
 def do_save_stock_price_ts(stock_code, df):
-    engine = tamp_fund_engine
+    engine = stock_engine
 
     if df is None or df.empty:
         return
@@ -68,7 +67,7 @@ def do_save_stock_price_ts(stock_code, df):
 
 
 '''
-更新每日指数价格信息 tushare
+更新每日指数价格信息 ts
 '''
 # 更新每日
 def update_daily_index_price(p_start_date, p_end_date):
@@ -90,7 +89,7 @@ def update_daily_index_price(p_start_date, p_end_date):
 
 
 def do_save_index_price_ts(index_code, market, df):
-    engine = tamp_fund_engine
+    engine = stock_engine
 
     if df is None or df.empty:
         return
@@ -120,12 +119,12 @@ def do_save_index_price_ts(index_code, market, df):
 
 
 '''
-更新每日ETF信息 tushare
+更新每日ETF信息 ts
 https://tushare.pro/document/2?doc_id=127
 '''
 # 更新每日
 def update_daily_etf_price(p_start_date, p_end_date):
-    engine = tamp_fund_engine
+    engine = stock_engine
     etfs = get_all_etf()
 
     j = 1
@@ -160,7 +159,7 @@ def update_daily_etf_price(p_start_date, p_end_date):
 
 
 def do_save_index_price_ts(index_code, market, df):
-    engine = tamp_fund_engine
+    engine = stock_engine
 
     if df is None or df.empty:
         return
@@ -199,7 +198,7 @@ see https://tushare.pro/document/2?doc_id=94
 see https://tushare.pro/document/2?doc_id=96
 '''
 def sync_all_index():
-    engine = tamp_fund_engine
+    engine = stock_engine
 
     market_list = ['CSI', 'SSE', 'SZSE']
 
@@ -248,7 +247,7 @@ def sync_all_index():
 https://tushare.pro/document/2?doc_id=19
 '''
 def sync_all_ETF():
-    engine = tamp_fund_engine
+    engine = stock_engine
 
     # df = pro.fund_basic()
     df = pro.fund_basic(market='E', status='L')
@@ -267,11 +266,12 @@ def sync_all_ETF():
 see https://waditu.com/document/2?doc_id=25
 '''
 def sync_all_stock():
-    engine = tamp_fund_engine
+    engine = stock_engine
 
     df = pro.stock_basic(exchange='', list_status='L', fields='ts_code,symbol,name,area,industry,market,list_date,list_status,is_hs')
 
     for i in df.index:
+        print('{}/{}'.format(i, len(df)))
         stock = df.loc[i]
 
         is_hk = 'N' if stock['is_hs'] == 'N' else 'Y'
@@ -287,17 +287,19 @@ def sync_all_stock():
 
 
 if __name__ == '__main__':
-    ts.set_token('702d425922f79bd2ebda78a369f6fe1a40982bbf6a51e00c61bec879')
-    pro = ts.pro_api()
+    tushare.set_token('702d425922f79bd2ebda78a369f6fe1a40982bbf6a51e00c61bec879')
+    pro = tushare.pro_api()
 
+
+    sync_all_stock()
     # sync_all_index()
 
     p_start_date = '20220907'
     p_end_date = '20220930'
 
     # 更新股票信息
-    update_month_stock_price_ts(p_start_date, p_end_date)
+    # update_month_stock_price_ts(p_start_date, p_end_date)
     # 更新指数信息
-    update_daily_index_price(p_start_date, p_end_date)
+    # update_daily_index_price(p_start_date, p_end_date)
     # 更新etf信息
-    update_daily_etf_price(p_start_date, p_end_date)
+    # update_daily_etf_price(p_start_date, p_end_date)

@@ -1,0 +1,9 @@
+local:
+  MySQL:
+    stock_engine_db: stock
+    host: cdb-iiu1hoxt.gz.tencentcdb.com
+    port: 10177
+    user: test
+    password: 'test11223344'
+
+
