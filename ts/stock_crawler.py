@@ -1,5 +1,7 @@
-import time
+# coding=utf-8
 
+
+import time
 
 from engine import stock_engine, TAMP_SQL
 from ts.stock_data_service import get_all_stock_code, delete_stock_daily_price, delete_stock_index, \
@@ -291,8 +293,10 @@ if __name__ == '__main__':
     pro = tushare.pro_api()
 
 
-    sync_all_stock()
-    # sync_all_index()
+    # sync_all_stock()
+    sync_all_index()
+    sync_all_ETF()
+
 
     p_start_date = '20220907'
     p_end_date = '20220930'

@@ -1,3 +1,5 @@
+# coding=utf-8
+
 from sqlalchemy import Column, DECIMAL, Float, Date, DateTime, String, TIMESTAMP, \
     Text, text, Integer, FetchedValue, BIGINT
 
