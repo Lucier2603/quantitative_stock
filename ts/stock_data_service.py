@@ -2,10 +2,9 @@
 
 import datetime
 import pandas as pd
-import ts as ts
 import os
 
-from engine import TAMP_SQL, stock_engine
+from base.engine import TAMP_SQL, stock_engine
 
 def backup_db(table):
     now = datetime.datetime.now()
@@ -43,7 +42,26 @@ def get_all_stock():
 
         return data
 
+def get_stock_info(stock_code):
+    with TAMP_SQL(stock_engine) as tamp_fund:
+        tamp_fund_session = tamp_fund.session
+        sql = """SELECT stock_code, stock_name FROM basic_stock_info where stock_code='{}'""".format(stock_code)
+        cur = tamp_fund_session.execute(sql)
+        data = cur.fetchall()
+
+        return data
+
 # stock_daily_price
+def get_max_stock_rcd_date():
+    stock_code = '688599.SH'
+    table_name = get_stock_price_table_name(stock_code)
+    with TAMP_SQL(stock_engine) as tamp_fund:
+        tamp_fund_session = tamp_fund.session
+        sql = """SELECT max(trade_date) FROM {} WHERE stock_code='{}'""".format(table_name, stock_code)
+        cur = tamp_fund_session.execute(sql)
+        data = cur.fetchall()
+        return data[0]
+
 def delete_stock_daily_price(stock_code, rcd_date):
     table_name = get_stock_price_table_name(stock_code)
     with TAMP_SQL(stock_engine) as tamp_fund:

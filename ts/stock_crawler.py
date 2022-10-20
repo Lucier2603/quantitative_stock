@@ -3,13 +3,13 @@
 
 import time
 
-from engine import stock_engine, TAMP_SQL
+from base.engine import stock_engine, TAMP_SQL
 from ts.stock_data_service import get_all_stock_code, delete_stock_daily_price, delete_stock_index, \
-    delete_stock_index_rel, get_all_index, delete_index_daily_price, get_all_etf, delete_etf_daily_price
+    delete_stock_index_rel, get_all_index, delete_index_daily_price, get_all_etf, delete_etf_daily_price, \
+    get_max_stock_rcd_date
 from ts.stock_model import BasicStockInfo, StockTradeDaily00x, StockTradeDaily30x, \
     StockTradeDaily60x, StockTradeDaily83x, StockTradeDaily688, StockIndex, StockIndexRel, IndexTradeDailyCSI, \
     IndexTradeDailySSE, IndexTradeDailySZSE, BasicETFInfo, ETFTradeDaily
-import pandas as pd
 import datetime
 import tushare
 
@@ -19,7 +19,7 @@ import tushare
 更新每日股票价格信息 ts
 '''
 # 更新每日
-def update_month_stock_price_ts(p_start_date, p_end_date):
+def update_month_stock_price_ts(p_start_date, p_end_date, pro):
     stocks = get_all_stock_code()
 
     i = 1
@@ -72,7 +72,7 @@ def do_save_stock_price_ts(stock_code, df):
 更新每日指数价格信息 ts
 '''
 # 更新每日
-def update_daily_index_price(p_start_date, p_end_date):
+def update_daily_index_price(p_start_date, p_end_date, pro):
     indexes = get_all_index()
 
     i = 1
@@ -125,7 +125,7 @@ def do_save_index_price_ts(index_code, market, df):
 https://tushare.pro/document/2?doc_id=127
 '''
 # 更新每日
-def update_daily_etf_price(p_start_date, p_end_date):
+def update_daily_etf_price(p_start_date, p_end_date, pro):
     engine = stock_engine
     etfs = get_all_etf()
 
@@ -199,7 +199,7 @@ def do_save_index_price_ts(index_code, market, df):
 see https://tushare.pro/document/2?doc_id=94
 see https://tushare.pro/document/2?doc_id=96
 '''
-def sync_all_index():
+def sync_all_index(pro):
     engine = stock_engine
 
     market_list = ['CSI', 'SSE', 'SZSE']
@@ -248,7 +248,7 @@ def sync_all_index():
 获取所有ETF信息
 https://tushare.pro/document/2?doc_id=19
 '''
-def sync_all_ETF():
+def sync_all_ETF(pro):
     engine = stock_engine
 
     # df = pro.fund_basic()
@@ -267,7 +267,7 @@ def sync_all_ETF():
 获取所有股票信息
 see https://waditu.com/document/2?doc_id=25
 '''
-def sync_all_stock():
+def sync_all_stock(pro):
     engine = stock_engine
 
     df = pro.stock_basic(exchange='', list_status='L', fields='ts_code,symbol,name,area,industry,market,list_date,list_status,is_hs')
@@ -294,16 +294,19 @@ if __name__ == '__main__':
 
 
     # sync_all_stock()
-    sync_all_index()
-    sync_all_ETF()
+    # sync_all_index()
+    # sync_all_ETF()
 
+    max_date = get_max_stock_rcd_date()
+    p_start_date = max_date[0].strftime('%Y%m%d')
+    p_end_date = datetime.date.today().strftime('%Y%m%d')
 
-    p_start_date = '20220907'
-    p_end_date = '20220930'
+    # p_start_date = '20220907'
+    # p_end_date = '20220930'
 
     # 更新股票信息
-    # update_month_stock_price_ts(p_start_date, p_end_date)
+    update_month_stock_price_ts(p_start_date, p_end_date)
     # 更新指数信息
-    # update_daily_index_price(p_start_date, p_end_date)
+    update_daily_index_price(p_start_date, p_end_date)
     # 更新etf信息
-    # update_daily_etf_price(p_start_date, p_end_date)
+    update_daily_etf_price(p_start_date, p_end_date)
