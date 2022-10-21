@@ -146,18 +146,15 @@ def strategy_find_trend_A(stock_code, stock_name, stock_df, start_strategy_time,
     if len(stock_df) == 0:
         return bs_df
 
-    if stock_df.iloc[-1]['high'] < 5:
-        return bs_df
-
     # 先做4年内筛选
     stock_df = stock_df[stock_df['trade_date'] > (start_strategy_time-datetime.timedelta(days=1000))]
     stock_df = stock_df.reset_index()
 
     #
     N = 20
-    ma(stock_df, 'close', 10)
-    ma(stock_df, 'close', 20)
-    ma(stock_df, 'close', 30)
+    # ma(stock_df, 'close', 10)
+    # ma(stock_df, 'close', 20)
+    # ma(stock_df, 'close', 30)
     cal_atr(stock_df, 12)
     # 跌幅大于-5的标记
     stock_df['flag_fail_than_5'] = stock_df['chg'].apply(lambda x: 1 if x<-5 else 0)
@@ -188,7 +185,7 @@ def strategy_find_trend_A(stock_code, stock_name, stock_df, start_strategy_time,
         # 买入条件 1. 连续10日高于 ma30 & ma20
         for j in range(0, 10):
             r2 = stock_df.loc[i-j]
-            if (r2['close'] < r2['close_ma30']) or (r2['close'] < r2['close_ma20']):
+            if (r2['close'] < ma_i(stock_df, 'close', 30, i)) or (r2['close'] < ma_i(stock_df, 'close', 20, i)):
                 buy_flag_1 = False
                 continue
 
@@ -226,8 +223,6 @@ def strategy_find_trend_A(stock_code, stock_name, stock_df, start_strategy_time,
                 cnt_10 += 1
         if cnt_10 > 3:
             continue
-
-
 
         if buy_flag_1 and buy_flag_2 and buy_flag_3 and buy_flag_4 and buy_flag_5 and (last_bs_type != 'B'):
             last_bs_type = 'B'
@@ -269,10 +264,6 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
 
     if len(stock_df) == 0:
         return bs_df
-
-    if stock_df.iloc[-1]['high'] < 5:
-        return bs_df
-
     # 先做4年内筛选
     stock_df = stock_df[stock_df['trade_date'] > (start_strategy_time-datetime.timedelta(days=1000))]
     stock_df = stock_df.reset_index()
@@ -292,13 +283,18 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
         if r['trade_date'] < start_strategy_time or i < 30 or r['trade_date'] > end_strategy_time:
             continue
 
+        buy_flag_1 = True
+
         # 买入条件 1.
+        fail_days = 0
         for j in range(0, 20):
             r2 = stock_df.loc[i-j]
             if r2['high'] < ma_i(stock_df, 'close', 10, i-j):
-                continue
+                fail_days += 1
+        if fail_days > 2:
+            continue
 
-        if (last_bs_type != 'B'):
+        if buy_flag_1 and (last_bs_type != 'B'):
             last_bs_type = 'B'
             last_buy_price = r['close']
             bs_df = bs_df.append({'stock_code':stock_code, 'stock_name':stock_name, 'trade_date':r['trade_date'], 'close':r['open'], 'price':r['open'], 'type':'B'}, ignore_index=True)
