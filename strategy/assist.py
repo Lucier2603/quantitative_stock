@@ -32,11 +32,8 @@ def ma(df, col_name, n, start_date=None):
 返回当前第i日/行，向前n个记录的ma_n值
 '''
 def ma_i(df, col_name, n, i):
-
     total = 0
-    a = df.loc[i-1, col_name]
-    b = df.loc[i-n-1, col_name]
-    for j in range(1, n+1):
+    for j in range(0, n):
         total += df.loc[i-j, col_name]
 
     return total / n
@@ -67,6 +64,16 @@ def zscore_price_i(df):
     # return (a - mns) / sstd
     return df
 
+
+'''
+ATR
+'''
+def cal_atr(df, n):
+    for i in range(0, len(df)):
+        df.loc[df.index[i], 'TR'] = max((df['close'][i] - df['low'][i]), (df['high'][i] - df['close'].shift(-1)[i]),
+                                        (df['low'][i] - df['close'].shift(-1)[i]))
+    df['ATR'] = df['TR'].rolling(n).mean()
+    return df
 
 
 '''

@@ -2,8 +2,9 @@ import json
 
 import multiprocessing as mp
 
+import numpy
 
-from strategy.assist import ma, bs_test_a, ma_i, high_vs_close
+from strategy.assist import ma, bs_test_a, ma_i, high_vs_close, cal_atr
 from ts.stock_data_service import get_all_stock_code, get_stock_daily_price_as_df, get_all_stock
 
 import datetime
@@ -23,9 +24,6 @@ bs_df = pd.DataFrame(columns=['stock_code', 'stock_name', 'trade_date', 'close',
 def strategy_more_than_ma_30(stock_code, stock_name, stock_df, start_strategy_time, end_strategy_time):
     # 买卖记录点
     bs_df = pd.DataFrame(columns=['stock_code', 'stock_name', 'trade_date', 'close', 'price', 'type'])
-
-    # if stock_code != '002124.SZ':
-    #     return bs_df
 
     if len(stock_df) == 0:
         return bs_df
@@ -63,8 +61,7 @@ def strategy_more_than_ma_30(stock_code, stock_name, stock_df, start_strategy_ti
         if r['trade_date'] < start_strategy_time or i < 30 or r['trade_date'] > end_strategy_time:
             continue
 
-        # buy
-        # 前五日 至少三日 收盘低于30日线
+        # 买入条件 1. 前五日 至少三日 收盘低于30日线
         # less_than_30_days = 0
         # for j in range(1,6):
         #     if stock_df.loc[i-j]['close']>r['close_ma30']:
@@ -72,11 +69,11 @@ def strategy_more_than_ma_30(stock_code, stock_name, stock_df, start_strategy_ti
         # if less_than_30_days<3:
         #     buy_flag_1 = False
 
-        # 当日必须收涨
+        # 买入条件 2. 当日必须收涨
         # if r['close']<r['open']:
-        #     buy_flag_1 = False
+        #     buy_flag_2 = False
 
-        # 5日内价格必须在最高的10%以上
+        # 买入条件 3. 5日内价格必须在最高的10%以上
         highest_5 = 0
         for j in range(1, 6):
             rr = stock_df.loc[i-j]
@@ -86,26 +83,18 @@ def strategy_more_than_ma_30(stock_code, stock_name, stock_df, start_strategy_ti
             continue
 
 
-        # 当前股价必须比30日内最低价涨15%
-        idx = i % 30
-        low_30_days[idx] = r['close']
-        if r['close'] > min(low_30_days) * 1.15:
-            buy_flag_2 = True
-        else:
-            buy_flag_2 = False
-
-        # 20日线上穿30日线 买入
+        # 买入条件 4. 20日线上穿30日线 买入
         # if r['close_ma10'] > r['close_ma20'] and r['close_ma20'] > r['close_ma30']:
-        #     buy_flag_2 = True
+        #     buy_flag_4 = True
         # else:
-        #     buy_flag_2 = False
+        #     buy_flag_4 = False
 
-        # 上穿20日线
+        # 买入条件 5. 上穿20日线
         r_1 = stock_df.loc[i-1]
         if r['high']>r['close_ma20'] and r['low']<r['close_ma20'] and r_1['high']<r['close_ma20']:
-            buy_flag_3 = True
+            buy_flag_5 = True
         else:
-            buy_flag_3 = False
+            buy_flag_5 = False
 
         # 并且30日线处于上升状态
         # buy_flag_1 = buy_flag_1 and stock_df.loc[i-5, 'close_ma30'] < r['close_ma30']
@@ -143,6 +132,200 @@ def strategy_more_than_ma_30(stock_code, stock_name, stock_df, start_strategy_ti
     return bs_df
 
 
+
+'''
+寻找趋势 策略
+'''
+def strategy_find_trend_A(stock_code, stock_name, stock_df, start_strategy_time, end_strategy_time):
+    # 买卖记录点
+    bs_df = pd.DataFrame(columns=['stock_code', 'stock_name', 'trade_date', 'close', 'price', 'type'])
+
+    # if stock_code != '000001.SZ':
+    #     return bs_df
+
+    if len(stock_df) == 0:
+        return bs_df
+
+    if stock_df.iloc[-1]['high'] < 5:
+        return bs_df
+
+    # 先做4年内筛选
+    stock_df = stock_df[stock_df['trade_date'] > (start_strategy_time-datetime.timedelta(days=1000))]
+    stock_df = stock_df.reset_index()
+
+    #
+    N = 20
+    ma(stock_df, 'close', 10)
+    ma(stock_df, 'close', 20)
+    ma(stock_df, 'close', 30)
+    cal_atr(stock_df, 12)
+    # 跌幅大于-5的标记
+    stock_df['flag_fail_than_5'] = stock_df['chg'].apply(lambda x: 1 if x<-5 else 0)
+    stock_df['flag_fail_than_5_sum'] = stock_df['flag_fail_than_5'].rolling(N).sum()
+    # 20日内振幅10%以上days
+
+
+    # 上一个交易行为 买入or卖出 用以防止连续买入or连续卖出
+    last_bs_type = 'N'
+    # 上一个买入价格 用以止损点设置
+    last_buy_price = 0
+
+
+    for i in stock_df.index:
+        r = stock_df.loc[i]
+        cur_date = r['trade_date']
+
+        buy_flag_1 = True
+        buy_flag_2 = True
+        buy_flag_3 = True
+        buy_flag_4 = True
+        buy_flag_5 = True
+
+        # 从指定日期开始
+        if r['trade_date'] < start_strategy_time or i < 30 or r['trade_date'] > end_strategy_time:
+            continue
+
+        # 买入条件 1. 连续10日高于 ma30 & ma20
+        for j in range(0, 10):
+            r2 = stock_df.loc[i-j]
+            if (r2['close'] < r2['close_ma30']) or (r2['close'] < r2['close_ma20']):
+                buy_flag_1 = False
+                continue
+
+        # 买入条件 2.杜绝短期高潮涨势 (波动率)
+        if r['ATR'] > 10:
+            continue
+
+        # 买入条件 3.20day 无超过2次的5%以上暴跌
+        if r['flag_fail_than_5_sum'] >= 2:
+            continue
+
+        # 买入条件 4. 最近8日阳阴平均成交量大于0.8
+        up_total_vol, up_days = 0, 0
+        down_total_vol, down_days = 0, 0
+        for j in range(0, 8):
+            r2 = stock_df.loc[i - j]
+            if r2['chg'] >= 0:
+                up_total_vol += r2['vol']
+                up_days += 1
+            else:
+                down_total_vol += r2['vol']
+                down_days += 1
+        if up_days*down_days != 0:
+            buy_flag_4 = (down_total_vol/down_days) / (up_total_vol/up_days) < 0.8
+
+        # 买入条件 5. 10日线偏离度
+
+
+        # 买入条件 6. 20日内振幅10%以上占比不超过3天
+        cnt_10 = 0
+        for j in range(0, 20):
+            r2 = stock_df.loc[i-j]
+            r3 = stock_df.loc[i-j-1]
+            if abs(r2['high']-r2['low'])/r3['close'] > 0.12:
+                cnt_10 += 1
+        if cnt_10 > 3:
+            continue
+
+
+
+        if buy_flag_1 and buy_flag_2 and buy_flag_3 and buy_flag_4 and buy_flag_5 and (last_bs_type != 'B'):
+            last_bs_type = 'B'
+            last_buy_price = r['close']
+            bs_df = bs_df.append({'stock_code':stock_code, 'stock_name':stock_name, 'trade_date':r['trade_date'], 'close':r['open'], 'price':r['open'], 'type':'B'}, ignore_index=True)
+
+
+        # sell
+        # 下穿5日线 卖出
+        ma_10 = ma_i(stock_df, 'close', 5, i)
+        sell_flag_1 = r['close'] <ma_10
+        # 触达止损点 卖出   止损设置在-5%
+        sell_flag_2 = r['low'] < last_buy_price * 0.95
+
+        if last_bs_type == 'B' and last_buy_price != r['close']:
+            if sell_flag_1 or sell_flag_2:
+                last_bs_type = 'S'
+                last_buy_price = 0
+                bs_df = bs_df.append({'stock_code': stock_code, 'stock_name':stock_name, 'trade_date': r['trade_date'], 'close': r['close'], 'price': r['close'], 'type': 'S'}, ignore_index=True)
+
+
+    # 最后一天作为卖出
+    if last_bs_type == 'B':
+        r = stock_df.iloc[-1]
+        bs_df = bs_df.append(
+            {'stock_code': stock_code, 'stock_name':stock_name, 'trade_date': '--', 'close': r['close'], 'price': r['close'],
+             'type': 'N'}, ignore_index=True)
+
+    return bs_df
+
+
+
+'''
+寻找趋势 策略
+'''
+def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time, end_strategy_time):
+    # 买卖记录点
+    bs_df = pd.DataFrame(columns=['stock_code', 'stock_name', 'trade_date', 'close', 'price', 'type'])
+
+    if len(stock_df) == 0:
+        return bs_df
+
+    if stock_df.iloc[-1]['high'] < 5:
+        return bs_df
+
+    # 先做4年内筛选
+    stock_df = stock_df[stock_df['trade_date'] > (start_strategy_time-datetime.timedelta(days=1000))]
+    stock_df = stock_df.reset_index()
+
+
+    # 上一个交易行为 买入or卖出 用以防止连续买入or连续卖出
+    last_bs_type = 'N'
+    # 上一个买入价格 用以止损点设置
+    last_buy_price = 0
+
+
+    for i in stock_df.index:
+        r = stock_df.loc[i]
+        cur_date = r['trade_date']
+
+        # 从指定日期开始
+        if r['trade_date'] < start_strategy_time or i < 30 or r['trade_date'] > end_strategy_time:
+            continue
+
+        # 买入条件 1.
+        for j in range(0, 20):
+            r2 = stock_df.loc[i-j]
+            if r2['high'] < ma_i(stock_df, 'close', 10, i-j):
+                continue
+
+        if (last_bs_type != 'B'):
+            last_bs_type = 'B'
+            last_buy_price = r['close']
+            bs_df = bs_df.append({'stock_code':stock_code, 'stock_name':stock_name, 'trade_date':r['trade_date'], 'close':r['open'], 'price':r['open'], 'type':'B'}, ignore_index=True)
+
+
+        # sell
+        # 下穿5日线 卖出
+        ma_10 = ma_i(stock_df, 'close', 5, i)
+        sell_flag_1 = r['close'] <ma_10
+        # 触达止损点 卖出   止损设置在-5%
+        sell_flag_2 = r['low'] < last_buy_price * 0.95
+
+        if last_bs_type == 'B' and last_buy_price != r['close']:
+            if sell_flag_1 or sell_flag_2:
+                last_bs_type = 'S'
+                last_buy_price = 0
+                bs_df = bs_df.append({'stock_code': stock_code, 'stock_name':stock_name, 'trade_date': r['trade_date'], 'close': r['close'], 'price': r['close'], 'type': 'S'}, ignore_index=True)
+
+
+    # 最后一天作为卖出
+    if last_bs_type == 'B':
+        r = stock_df.iloc[-1]
+        bs_df = bs_df.append(
+            {'stock_code': stock_code, 'stock_name':stock_name, 'trade_date': '--', 'close': r['close'], 'price': r['close'],
+             'type': 'N'}, ignore_index=True)
+
+    return bs_df
 
 
 '''
@@ -889,13 +1072,14 @@ def get_stock_by_index():
     index_list = ['沪深300','中证500','中证800成长','中证800价值','中证1000']
 
     total_stock_set = set()
-    for index in index_list:
-        with open('D:\\work\\project\\jk_data\\stock_base\\指数及成分\\'+index+'.txt', 'r') as f:
-            l = f.readline()
-            weight_list = json.loads(l)
-            for w in weight_list:
-                stock_code = w['wind_code'][0:6]
-                total_stock_set.add(stock_code)
+    # todo
+    # for index in index_list:
+    #     with open('D:\\work\\project\\jk_data\\stock_base\\指数及成分\\'+index+'.txt', 'r') as f:
+    #         l = f.readline()
+    #         weight_list = json.loads(l)
+    #         for w in weight_list:
+    #             stock_code = w['wind_code'][0:6]
+    #             total_stock_set.add(stock_code)
 
     return total_stock_set
 
@@ -946,6 +1130,8 @@ def handle_stock_strategy(context):
 
 
 
+save_dir = './result/strategy/'
+# save_dir = 'D:\\work\\project\\jk_data\\strategy_result\\'
 def filter_strategy(strategy, strategy_name, start_strategy_time, end_strategy_time):
 
     stocks = get_all_stock()
@@ -981,8 +1167,8 @@ def filter_strategy(strategy, strategy_name, start_strategy_time, end_strategy_t
 
     cash_df.sort_values(by = 'profit_ratio')
 
-    cash_df.to_csv('D:\\work\\project\\jk_data\\strategy_result\\'+strategy_name+'_cash_df.csv', index=False, sep=',', encoding='utf-8-sig')
-    bs_df_total.to_csv('D:\\work\\project\\jk_data\\strategy_result\\'+strategy_name+'_bs_df_total.csv', index=False, sep=',', encoding='utf-8-sig')
+    cash_df.to_csv(save_dir+strategy_name+'_cash_df.csv', index=False, sep=',', encoding='utf-8-sig')
+    bs_df_total.to_csv(save_dir+strategy_name+'_bs_df_total.csv', index=False, sep=',', encoding='utf-8-sig')
 
     # 结果输出
     print('total_profit_ratio {}'.format({cash_df['profit_ratio'].sum()}))
