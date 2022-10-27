@@ -75,6 +75,7 @@ def strategy_more_than_ma_30(stock_code, stock_name, stock_df, start_strategy_ti
     return bs_df
 
 
+# todo  上穿20日线的附加条件？ ma5 ma10必须由下向上穿过，不能本来就在上方，然后震荡穿过
 
 '''
 寻找趋势 策略
