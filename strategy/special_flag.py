@@ -40,7 +40,7 @@ def deviation_degree_on_ma10(stock_code, stock_name, stock_df, start_strategy_ti
         buy_flag_1 = True
 
         # 买入条件 1.
-        if r['low'] / ma_i(stock_df, 'close', 10, i) > (1-r['amp']*5):
+        if r['low'] / ma_i(stock_df, 'close', 10, i) > (1-r['amp']*12):
             continue
 
         if buy_flag_1 and (last_bs_type != 'B'):
