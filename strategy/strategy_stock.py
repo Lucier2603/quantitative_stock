@@ -44,38 +44,63 @@ def strategy_more_than_ma_30(stock_code, stock_name, stock_df, start_strategy_ti
     # 上一个买入价格 用以止损点设置
     last_buy_price = 0
 
-
-    low_30_days = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-
-
-
     for i in stock_df.index:
         r = stock_df.loc[i]
-        cur_date = r['trade_date']
-
-        buy_flag_1 = True
-        buy_flag_2 = False
-        buy_flag_3 = False
 
         # 从指定日期开始
         if r['trade_date'] < start_strategy_time or i < 30 or r['trade_date'] > end_strategy_time:
             continue
 
+        ma5 = ma_i(stock_df, 'close', 5, i)
+        ma10 = ma_i(stock_df, 'close', 10, i)
+        ma20 = ma_i(stock_df, 'close', 20, i)
 
-        # 买入条件 3. 5日内价格必须在最高的10%以上
-        highest_5 = 0
-        for j in range(1, 6):
-            rr = stock_df.loc[i-j]
-            if rr['close']>highest_5:
-                highest_5 = rr['close']
-        if r['close'] < highest_5*0.95:
+        # 买入条件 1.  ma5 > ma10
+        if ma5 < ma10:
             continue
+
+        # 买入条件 2.  ma10从刚刚下向上穿3天; ma10在ma20下运行至少5日; 收盘价均高于ma5的98%
+        if ma10 < ma20:
+            continue
+        buy_flag_1 = True
+        for j in range(3, 8):
+            ma10j = ma_i(stock_df, 'close', 10, i-j)
+            ma20j = ma_i(stock_df, 'close', 20, i-j)
+            if ma10j > ma20j:
+                buy_flag_1 = False
+                break
+        if not buy_flag_1:
+            continue
+        for j in range(1, 8):
+            # 收盘价均高于ma5的98%
+            close5j = stock_df.loc[i - j, 'close']
+            ma5j = ma_i(stock_df, 'close', 5, i - j)
+            if close5j < ma5j * 0.985:
+                buy_flag_1 = False
+                break
+            # todo 控制一下下跌日子数量
+        if not buy_flag_1:
+            continue
+
+
+        bs_df = bs_df.append(
+            {'stock_code': stock_code, 'stock_name': stock_name, 'trade_date': r['trade_date']}, ignore_index=True)
+
+        # 买入条件 1. 5日内价格必须在最高的10%以上
+        # todo 这个应该作为寻找趋势的策略
+        # highest_5 = 0
+        # for j in range(1, 6):
+        #     rr = stock_df.loc[i-j]
+        #     if rr['close']>highest_5:
+        #         highest_5 = rr['close']
+        # if r['close'] < highest_5*0.95:
+        #     continue
 
 
     return bs_df
 
 
-# todo  上穿20日线的附加条件？ ma5 ma10必须由下向上穿过，不能本来就在上方，然后震荡穿过
+
 
 '''
 寻找趋势 策略
@@ -239,7 +264,16 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
         if fail_falg:
             continue
 
-        # 买入条件 2. 5日线和10日线，不能一直纠缠，需要有一定差距
+        # 买入条件 2. 须在60内的20%区间上
+        max_60 = stock_df.rolling(60).max()
+        if r['close'] < max_60 * 0.8:
+            continue
+
+        # 买入条件 3. 5日线和10日线，不能一直纠缠，需要有一定差距
+
+        # 止损条件 1. 止损时点：ma20和ma30中间，目标是防止大阴线
+        # 止损条件 2. 止损时点：最高价向下10%
+        # 卖出条件 3. 频繁长上影线
 
         if buy_flag_1:
             last_bs_type = 'B'
