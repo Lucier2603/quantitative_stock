@@ -265,11 +265,16 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
             continue
 
         # 买入条件 2. 须在60内的20%区间上
-        max_60 = stock_df.rolling(60).max()
-        if r['close'] < max_60 * 0.8:
-            continue
+        # max_60 = stock_df.rolling(60).max()
+        # if r['close'] < max_60 * 0.8:
+        #     continue
 
         # 买入条件 3. 5日线和10日线，不能一直纠缠，需要有一定差距
+
+        # todo 买入条件 4. 拒绝大阴线 收阴且open-close大于5%
+
+        # todo 买入条件 5. 成交量最大的一天 不可以收阴线
+
 
         # 止损条件 1. 止损时点：ma20和ma30中间，目标是防止大阴线
         # 止损条件 2. 止损时点：最高价向下10%
