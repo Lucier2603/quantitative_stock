@@ -31,19 +31,19 @@ if __name__ == '__main__':
     # update_daily_etf_price(p_start_date, p_end_date, pro)
 
     # 指定日期范围
-    # start_strategy_time = datetime.date.today() + datetime.timedelta(days=-1)
-    # end_strategy_time = datetime.date.today()
-    start_strategy_time = datetime.date(2022, 9, 26)
-    end_strategy_time = datetime.date(2022, 10, 27)
+    start_strategy_time = datetime.date.today() + datetime.timedelta(days=-1)
+    end_strategy_time = datetime.date.today()
+    # start_strategy_time = datetime.date(2022, 9, 26)
+    # end_strategy_time = datetime.date(2022, 10, 27)
 
 
 
     # 上穿20日线
-    filter_strategy(strategy_more_than_ma_30, '上穿20日线', start_strategy_time, end_strategy_time)
+    # filter_strategy(strategy_more_than_ma_30, '上穿20日线', start_strategy_time, end_strategy_time)
     # 寻找趋势 A  (20日趋势线)
     # filter_strategy(strategy_find_trend_A, '寻找趋势A', start_strategy_time, end_strategy_time)
     # 寻找趋势 B  (简单策略：20日都在10日线上)
-    # filter_strategy(strategy_find_trend_B, '寻找趋势B', start_strategy_time, end_strategy_time)
+    filter_strategy(strategy_find_trend_B, '寻找趋势B', start_strategy_time, end_strategy_time)
     # 大阳后小幅回调
     # filter_strategy(strategy_after_big_increase, '大阳回调', start_strategy_time, end_strategy_time)
     # 交易量 阳大阴小

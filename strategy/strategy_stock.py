@@ -273,7 +273,31 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
 
         # todo 买入条件 4. 拒绝大阴线 收阴且open-close大于5%
 
-        # todo 买入条件 5. 成交量最大的一天 不可以收阴线
+        # 买入条件 5. 成交量最大的一天(大于2倍平均值) 不可以收阴线
+        max_vol = 0
+        total_vol = 0
+        is_red = True
+        for j in range(0, 12):
+            r2 = stock_df.loc[i - j]
+            total_vol += r2['vol']
+            if r2['vol'] > max_vol:
+                max_vol = r2['vol']
+                is_red = r2['chg'] > 0
+        avg_vol = total_vol / 12
+        if (max_vol > avg_vol * 2) and (not is_red):
+            continue
+
+        # 买入条件 6. RSI强度指数 阴线阳线数量比
+        # red_cnt = 0
+        # green_cnt = 0
+        # for j in range(0, 12):
+        #     r2 = stock_df.loc[i - j]
+        #     if r2['chg'] > 0:
+        #         red_cnt += 1
+        #     else:
+        #         green_cnt += 1
+        # if red_cnt < (green_cnt*1.5):
+        #     continue
 
 
         # 止损条件 1. 止损时点：ma20和ma30中间，目标是防止大阴线
@@ -646,8 +670,16 @@ def filter_strategy(strategy, strategy_name, start_strategy_time, end_strategy_t
 
     cash_df.sort_values(by = 'profit_ratio')
 
-    cash_df.to_csv(save_dir+strategy_name+'_cash_df.csv', index=False, sep=',', encoding='utf-8-sig')
-    bs_df_total.to_csv(save_dir+strategy_name+'_bs_df_total.csv', index=False, sep=',', encoding='utf-8-sig')
+    # cash_df.to_csv(save_dir+strategy_name+'_cash_df.csv', index=False, sep=',', encoding='utf-8-sig')
+    # 和上一日的bs_df的diff 新增部分
+    bs_df_total.to_csv(save_dir + strategy_name + '_bs_df_total.csv', index=False, sep=',', encoding='utf-8-sig')
+    bs_df_total = bs_df_total[bs_df_total['trade_date']<end_strategy_time]
+    bs_df_total.to_csv(save_dir + strategy_name + '_bs_df_add.csv', index=False, sep=',', encoding='utf-8-sig')
+
+    # bs_df_total.to_csv(save_dir+strategy_name+'_bs_df_total.csv', index=False, sep=',', encoding='utf-8-sig')
+
+
+
 
     # 结果输出
     print('total_profit_ratio {}'.format({cash_df['profit_ratio'].sum()}))
