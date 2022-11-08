@@ -35,14 +35,9 @@ def strategy_more_than_ma_30(stock_code, stock_name, stock_df, start_strategy_ti
     stock_df = stock_df[stock_df['trade_date'] > (start_strategy_time-datetime.timedelta(days=1000))]
     stock_df = stock_df.reset_index()
 
-    ma(stock_df, 'close', 10)
-    ma(stock_df, 'close', 20)
-    ma(stock_df, 'close', 30)
-
-    # 上一个交易行为 买入or卖出 用以防止连续买入or连续卖出
-    last_bs_type = 'N'
-    # 上一个买入价格 用以止损点设置
-    last_buy_price = 0
+    # ma(stock_df, 'close', 10)
+    # ma(stock_df, 'close', 20)
+    # ma(stock_df, 'close', 30)
 
     for i in stock_df.index:
         r = stock_df.loc[i]
@@ -55,11 +50,11 @@ def strategy_more_than_ma_30(stock_code, stock_name, stock_df, start_strategy_ti
         ma10 = ma_i(stock_df, 'close', 10, i)
         ma20 = ma_i(stock_df, 'close', 20, i)
 
-        # 买入条件 1.  ma5 > ma10
+        # 买入条件 1. ma5 > ma10
         if ma5 < ma10:
             continue
 
-        # 买入条件 2.  ma10从刚刚下向上穿3天; ma10在ma20下运行至少5日; 收盘价均高于ma5的98%
+        # 买入条件 2. ma10从刚刚下向上穿3天; ma10在ma20下运行至少5日; 收盘价均高于ma5的98%
         if ma10 < ma20:
             continue
         buy_flag_1 = True
@@ -86,19 +81,74 @@ def strategy_more_than_ma_30(stock_code, stock_name, stock_df, start_strategy_ti
         bs_df = bs_df.append(
             {'stock_code': stock_code, 'stock_name': stock_name, 'trade_date': r['trade_date']}, ignore_index=True)
 
-        # 买入条件 1. 5日内价格必须在最高的10%以上
-        # todo 这个应该作为寻找趋势的策略
-        # highest_5 = 0
-        # for j in range(1, 6):
-        #     rr = stock_df.loc[i-j]
-        #     if rr['close']>highest_5:
-        #         highest_5 = rr['close']
-        # if r['close'] < highest_5*0.95:
-        #     continue
+    return bs_df
+
+
+'''
+上穿30日线 策略
+'''
+def strategy_more_than_ma_30(stock_code, stock_name, stock_df, start_strategy_time, end_strategy_time):
+    # 买卖记录点
+    bs_df = pd.DataFrame(columns=['stock_code', 'stock_name', 'trade_date', 'close', 'price', 'type'])
+
+    if len(stock_df) == 0:
+        return bs_df
+
+    if stock_df.iloc[-1]['high'] < 5:
+        return bs_df
+
+    # 先做4年内筛选
+    stock_df = stock_df[stock_df['trade_date'] > (start_strategy_time-datetime.timedelta(days=1000))]
+    stock_df = stock_df.reset_index()
+
+    # ma(stock_df, 'close', 10)
+    # ma(stock_df, 'close', 20)
+    # ma(stock_df, 'close', 30)
+
+    for i in stock_df.index:
+        r = stock_df.loc[i]
+
+        # 从指定日期开始
+        if r['trade_date'] < start_strategy_time or i < 30 or r['trade_date'] > end_strategy_time:
+            continue
+
+        ma5 = ma_i(stock_df, 'close', 5, i)
+        ma10 = ma_i(stock_df, 'close', 10, i)
+        ma20 = ma_i(stock_df, 'close', 20, i)
+
+        # 买入条件 1. ma5 > ma10
+        if ma5 < ma10:
+            continue
+
+        # 买入条件 2. ma10从刚刚下向上穿3天; ma10在ma20下运行至少5日; 收盘价均高于ma5的98%
+        if ma10 < ma20:
+            continue
+        buy_flag_1 = True
+        for j in range(3, 8):
+            ma10j = ma_i(stock_df, 'close', 10, i-j)
+            ma20j = ma_i(stock_df, 'close', 20, i-j)
+            if ma10j > ma20j:
+                buy_flag_1 = False
+                break
+        if not buy_flag_1:
+            continue
+        for j in range(1, 8):
+            # 收盘价均高于ma5的98%
+            close5j = stock_df.loc[i - j, 'close']
+            ma5j = ma_i(stock_df, 'close', 5, i - j)
+            if close5j < ma5j * 0.985:
+                buy_flag_1 = False
+                break
+            # todo 控制一下下跌日子数量
+        if not buy_flag_1:
+            continue
+
+
+        bs_df = bs_df.append(
+            {'stock_code': stock_code, 'stock_name': stock_name, 'trade_date': r['trade_date']}, ignore_index=True)
 
 
     return bs_df
-
 
 
 
@@ -255,7 +305,7 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
         fail_falg = False
         for j in range(0, 12):
             r2 = stock_df.loc[i-j]
-            if r2['high'] < ma_i(stock_df, 'close', 10, i-j):
+            if r2['high'] < ma_i(stock_df, 'close', 10, i-j) * 0.985:
                 fail_falg = True
                 break
             if ma_i(stock_df, 'close', 10, i-j) < ma_i(stock_df, 'close', 20, i-j):
@@ -292,7 +342,7 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
         # green_cnt = 0
         # for j in range(0, 12):
         #     r2 = stock_df.loc[i - j]
-        #     if r2['chg'] > 0:
+        #     if r2['close'] > r2['open']:
         #         red_cnt += 1
         #     else:
         #         green_cnt += 1
