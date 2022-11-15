@@ -127,7 +127,7 @@ def strategy_more_than_ma_30(stock_code, stock_name, stock_df, start_strategy_ti
         for j in range(3, 8):
             ma10j = ma_i(stock_df, 'close', 10, i-j)
             ma20j = ma_i(stock_df, 'close', 20, i-j)
-            if ma10j > ma20j:
+            if ma10j > ma20j*0.98:
                 buy_flag_1 = False
                 break
         if not buy_flag_1:
@@ -722,7 +722,28 @@ def filter_strategy(strategy, strategy_name, start_strategy_time, end_strategy_t
 
     # cash_df.to_csv(save_dir+strategy_name+'_cash_df.csv', index=False, sep=',', encoding='utf-8-sig')
     # 和上一日的bs_df的diff 新增部分
+    latest_df = pd.read_csv(save_dir + strategy_name + '_bs_df_total.csv')
+    latest_set = set()
+    for i in latest_df.index:
+        r = latest_df.loc[i]
+        latest_set.add(r['stock_code'])
+
+    # 写本次文件
     bs_df_total.to_csv(save_dir + strategy_name + '_bs_df_total.csv', index=False, sep=',', encoding='utf-8-sig')
+    # 计算差异
+    diff_df = pd.DataFrame()
+    bs_df_total = bs_df_total.reset_index()
+    for i in bs_df_total.index:
+        r = bs_df_total.loc[i]
+        d=r['trade_date']
+        key = r['stock_code']
+        if key not in latest_set:
+            diff_df = diff_df.append(r)
+    diff_df.to_csv(save_dir + strategy_name + '_bs_df_diff.csv', index=False, sep=',', encoding='utf-8-sig')
+
+
+
+
     bs_df_total = bs_df_total[bs_df_total['trade_date']<end_strategy_time]
     bs_df_total.to_csv(save_dir + strategy_name + '_bs_df_add.csv', index=False, sep=',', encoding='utf-8-sig')
 
