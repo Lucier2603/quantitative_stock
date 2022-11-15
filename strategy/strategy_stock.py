@@ -359,6 +359,99 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
     return bs_df
 
 
+
+'''
+回调到ma均线 策略
+'''
+def strategy_back_to_ma(stock_code, stock_name, stock_df, start_strategy_time, end_strategy_time):
+    # 买卖记录点
+    bs_df = pd.DataFrame(columns=['stock_code', 'stock_name', 'trade_date', 'close', 'price', 'type'])
+
+    if len(stock_df) == 0:
+        return bs_df
+    # 先做4年内筛选
+    stock_df = stock_df[stock_df['trade_date'] > (start_strategy_time-datetime.timedelta(days=1000))]
+    stock_df = stock_df.reset_index()
+
+
+    # 上一个交易行为 买入or卖出 用以防止连续买入or连续卖出
+    last_bs_type = 'N'
+    # 上一个买入价格 用以止损点设置
+    last_buy_price = 0
+
+
+    for i in stock_df.index:
+        r = stock_df.loc[i]
+        cur_date = r['trade_date']
+
+        # 从指定日期开始
+        if r['trade_date'] < start_strategy_time or i < 30 or r['trade_date'] > end_strategy_time:
+            continue
+
+        buy_flag_1 = True
+
+        # 买入条件 1. 接近ma10 ma20 ma30  2. 缩量
+        fail_falg = False
+        for j in range(0, 12):
+            r2 = stock_df.loc[i-j]
+            if r2['high'] < ma_i(stock_df, 'close', 10, i-j) * 0.985:
+                fail_falg = True
+                break
+            if ma_i(stock_df, 'close', 10, i-j) < ma_i(stock_df, 'close', 20, i-j):
+                fail_falg = True
+                break
+        if fail_falg:
+            continue
+
+        # 买入条件 2. 须在60内的20%区间上
+        # max_60 = stock_df.rolling(60).max()
+        # if r['close'] < max_60 * 0.8:
+        #     continue
+
+        # 买入条件 3. 5日线和10日线，不能一直纠缠，需要有一定差距
+
+        # todo 买入条件 4. 拒绝大阴线 收阴且open-close大于5%
+
+        # 买入条件 5. 成交量最大的一天(大于2倍平均值) 不可以收阴线
+        max_vol = 0
+        total_vol = 0
+        is_red = True
+        for j in range(0, 12):
+            r2 = stock_df.loc[i - j]
+            total_vol += r2['vol']
+            if r2['vol'] > max_vol:
+                max_vol = r2['vol']
+                is_red = r2['chg'] > 0
+        avg_vol = total_vol / 12
+        if (max_vol > avg_vol * 2) and (not is_red):
+            continue
+
+        # 买入条件 6. RSI强度指数 阴线阳线数量比
+        # red_cnt = 0
+        # green_cnt = 0
+        # for j in range(0, 12):
+        #     r2 = stock_df.loc[i - j]
+        #     if r2['close'] > r2['open']:
+        #         red_cnt += 1
+        #     else:
+        #         green_cnt += 1
+        # if red_cnt < (green_cnt*1.5):
+        #     continue
+
+
+        # 止损条件 1. 止损时点：ma20和ma30中间，目标是防止大阴线
+        # 止损条件 2. 止损时点：最高价向下10%
+        # 卖出条件 3. 频繁长上影线
+
+        if buy_flag_1:
+            last_bs_type = 'B'
+            last_buy_price = r['close']
+            bs_df = bs_df.append({'stock_code':stock_code, 'stock_name':stock_name, 'trade_date':r['trade_date'], 'close':r['open'], 'price':r['open'], 'type':'B'}, ignore_index=True)
+
+    return bs_df
+
+
+
 '''
 寻找趋势 策略
 '''
@@ -475,6 +568,8 @@ def strategy_after_big_increase(stock_code, stock_name, stock_df, start_strategy
     last_bs_type = 'N'
     # 上一个买入价格 用以止损点设置
     last_buy_price = 0
+
+    # todo 参考601628
 
     for i in stock_df.index:
         r = stock_df.loc[i]
