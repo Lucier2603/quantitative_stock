@@ -168,9 +168,6 @@ def strategy_find_trend_A(stock_code, stock_name, stock_df, start_strategy_time,
 
     #
     N = 20
-    # ma(stock_df, 'close', 10)
-    # ma(stock_df, 'close', 20)
-    # ma(stock_df, 'close', 30)
     cal_atr(stock_df, 12)
     # 跌幅大于-5的标记
     stock_df['flag_fail_than_5'] = stock_df['chg'].apply(lambda x: 1 if x<-5 else 0)
@@ -363,14 +360,83 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
 
 
 '''
-行业共振 策略
+寻找趋势 策略
 '''
-def strategy_industry_top(stock_code, stock_df):
-    return 1
+def strategy_back_to_ma(stock_code, stock_name, stock_df, start_strategy_time, end_strategy_time):
+    # 买卖记录点
+    bs_df = pd.DataFrame(columns=['stock_code', 'stock_name', 'trade_date', 'close', 'price', 'type'])
 
+    if len(stock_df) == 0:
+        return bs_df
+    # 先做4年内筛选
+    stock_df = stock_df[stock_df['trade_date'] > (start_strategy_time-datetime.timedelta(days=1000))]
+    stock_df = stock_df.reset_index()
 
+    for i in stock_df.index:
+        r = stock_df.loc[i]
+        cur_date = r['trade_date']
 
+        # 从指定日期开始
+        if r['trade_date'] < start_strategy_time or i < 30 or r['trade_date'] > end_strategy_time:
+            continue
 
+        # 买入条件 1. 回调到ma10 20 30
+        ma5 = ma_i(stock_df, 'close', 5, i)
+        ma10 = ma_i(stock_df, 'close', 10, i)
+        ma20 = ma_i(stock_df, 'close', 20, i)
+        ma30 = ma_i(stock_df, 'close', 30, i)
+
+        diff10 = abs(r['close']/ma10-1)
+        diff20 = abs(r['close']/ma20-1)
+        diff30 = abs(r['close']/ma30-1)
+
+        if diff10<0.015 or diff20<0.015 or diff30<0.015:
+            buy_flag_1 = True
+        else:
+            continue
+
+        # 买入条件 2. 缩量下跌0.75
+
+        # 当天如果收红且振幅>0.75 则continue
+        if r['close']/r['open']-1>0.0075:
+            continue
+
+        red_total_vol = 0
+        red_total_days = 0
+        for j in range(1, 8):
+            r2 = stock_df.loc[i - j]
+            if r2['chg'] >0:
+                red_total_vol+=r2['vol']
+                red_total_days+=1
+        if red_total_days==0 or r['vol'] > red_total_vol/red_total_days*0.75:
+            continue
+
+        # 买入条件 3. 最高close与当前close至少有5%以上价差
+        max_close = 0
+        for j in range(1, 8):
+            r2 = stock_df.loc[i - j]
+            max_close=max_close if max_close>r2['close'] else r2['close']
+        if max_close/r['close']<1.04:
+            continue
+
+        # 买入条件 4. 均线向上 且有一定差距
+        if ma20<ma30 or (ma10/ma20<1.02):
+            continue
+
+        # 买入条件 5. 无超过5%以上下跌
+        fail_flag = False
+        for j in range(1, 15):
+            r2 = stock_df.loc[i - j]
+            if r2['close']/r2['open']-1 < -0.05:
+                fail_flag=True
+                continue
+        if fail_flag:
+            continue
+
+        bs_df = bs_df.append(
+            {'stock_code': stock_code, 'stock_name': stock_name, 'trade_date': r['trade_date']}, ignore_index=True)
+
+    return bs_df
 
 
 
