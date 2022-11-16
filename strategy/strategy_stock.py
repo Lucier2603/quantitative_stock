@@ -380,6 +380,9 @@ def strategy_back_to_ma(stock_code, stock_name, stock_df, start_strategy_time, e
     last_buy_price = 0
 
 
+    # todo 参考601628
+    # todo 必须先有一定的涨幅
+
     for i in stock_df.index:
         r = stock_df.loc[i]
         cur_date = r['trade_date']
@@ -569,7 +572,7 @@ def strategy_after_big_increase(stock_code, stock_name, stock_df, start_strategy
     # 上一个买入价格 用以止损点设置
     last_buy_price = 0
 
-    # todo 参考601628
+
 
     for i in stock_df.index:
         r = stock_df.loc[i]
