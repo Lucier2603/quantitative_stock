@@ -44,7 +44,7 @@ if __name__ == '__main__':
     # filter_strategy(strategy_find_trend_A, '寻找趋势A', start_strategy_time, end_strategy_time)
     # 寻找趋势 B  (简单策略：20日都在10日线上)
     filter_strategy(strategy_find_trend_B, '寻找趋势B', start_strategy_time, end_strategy_time)
-    # todo 策略 缩量回调到ma20 ma30
+    # 策略 缩量回调到ma20 ma30
     filter_strategy(strategy_back_to_ma, '均线回调', start_strategy_time, end_strategy_time)
     # 大阳后小幅回调
     filter_strategy(strategy_after_big_increase, '大阳回调', start_strategy_time, end_strategy_time)

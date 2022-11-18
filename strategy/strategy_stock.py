@@ -529,6 +529,21 @@ def strategy_back_to_ma(stock_code, stock_name, stock_df, start_strategy_time, e
         if fail_flag:
             continue
 
+        # 买入条件 6. 无高开大阴线
+        fail_flag=False
+        max_red_vol = 0
+        max_green_vol = 0
+
+        for j in range(1, 10):
+            r2 = stock_df.loc[i - j]
+            if r2['close']>r2['open'] and r2['vol']>max_red_vol:
+                max_red_vol = r2['vol']
+            elif r2['close']<r2['open'] and r2['vol']>max_green_vol:
+                max_green_vol = r2['vol']
+        if max_green_vol>max_red_vol:
+            continue
+
+
         bs_df = bs_df.append(
             {'stock_code': stock_code, 'stock_name': stock_name, 'trade_date': r['trade_date']}, ignore_index=True)
 
