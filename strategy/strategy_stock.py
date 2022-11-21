@@ -296,8 +296,12 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
         if r['trade_date'] < start_strategy_time or i < 30 or r['trade_date'] > end_strategy_time:
             continue
 
-        buy_flag_1 = True
+        ma_5 = ma_i(stock_df, 'close', 5, i)
+        ma_10 = ma_i(stock_df, 'close', 10, i)
+        ma_20 = ma_i(stock_df, 'close', 20, i)
 
+
+        buy_flag_1 = True
         # 买入条件 1. 10日内的最高价都在10日线上  2. 10日线必须都在20日线上
         fail_falg = False
         for j in range(0, 12):
@@ -316,22 +320,36 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
         # if r['close'] < max_60 * 0.8:
         #     continue
 
-        # 买入条件 3. 5日线和10日线，不能一直纠缠，需要有一定差距
+        # 买入条件 3. 5日线必须高于20日线至少5个百分点
+        if ma_5<ma_20*1.05:
+            continue
 
-        # 买入条件 4. 拒绝大阴线 收阴且open-close大于5%
+        # 买入条件 4. 拒绝大阴线 收阴且open-close大于7%
+        buy_flag_4 = True
+        for j in range(0, 12):
+            r2 = stock_df.loc[i - j]
+            if r2['open']/r2['close']>1.07:
+                buy_flag_4 = False
+                break
+        if not buy_flag_4:
+            continue
 
-        # 买入条件 5. 成交量最大的一天(大于2倍平均值) 不可以收阴线
+        # 买入条件 5. 成交量最大的一天(大于1.5倍红色平均值) 不可以收阴线
         max_vol = 0
-        total_vol = 0
+        red_total_vol = 0
+        red_days = 0
         is_red = True
         for j in range(0, 12):
             r2 = stock_df.loc[i - j]
-            total_vol += r2['vol']
+            if r2['close'] > r2['open']:
+                red_total_vol += r2['vol']
+                red_days += 1
+
             if r2['vol'] > max_vol:
                 max_vol = r2['vol']
-                is_red = r2['chg'] > 0
-        avg_vol = total_vol / 12
-        if (max_vol > avg_vol * 2) and (not is_red):
+                is_red = r2['close'] > r2['open']
+        avg_red_vol = red_total_vol / red_days
+        if (max_vol > avg_red_vol * 1.5) and (not is_red):
             continue
 
         # 买入条件 6. RSI强度指数 阴线阳线数量比
@@ -346,10 +364,31 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
         # if red_cnt < (green_cnt*1.5):
         #     continue
 
-        # todo 买入条件 7. 在5日线上4%以内，10日线上+-1.5% 20日线上+-2%
+        # 买入条件 7. 在5日线上2%以内，10日线上+-3% 20日线上+-3%
+        buy_flag_2 = False
 
-        # 买入条件 7. 当日收阴
+        if r['close']<ma_5*1.02 and r['close']>ma_5*0.98:
+            buy_flag_2 = True
+        if r['close']<ma_10*1.03 and r['close']>ma_10*0.97:
+            buy_flag_2 = True
+        if r['close']<ma_20*1.03 and r['close']>ma_20*0.97:
+            buy_flag_2 = True
+        if not buy_flag_2:
+            continue
+
+
+        # 买入条件 8. 当日收阴
         if r['close'] > r['open']:
+            continue
+
+        # 买入条件 9. 无6%以上暴跌
+        buy_flag_3 = True
+        for j in range(0, 10):
+            r2 = stock_df.loc[i - j]
+            if r2['chg'] < -6:
+                buy_flag_3 = False
+                break
+        if not buy_flag_3:
             continue
 
 
