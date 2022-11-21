@@ -346,6 +346,8 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
         # if red_cnt < (green_cnt*1.5):
         #     continue
 
+        # todo 买入条件 7. 在5日线上4%以内，10日线上+-1.5% 20日线上+-2%
+
         # 买入条件 7. 当日收阴
         if r['close'] > r['open']:
             continue
