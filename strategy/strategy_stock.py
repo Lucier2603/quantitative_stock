@@ -318,7 +318,7 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
 
         # 买入条件 3. 5日线和10日线，不能一直纠缠，需要有一定差距
 
-        # todo 买入条件 4. 拒绝大阴线 收阴且open-close大于5%
+        # 买入条件 4. 拒绝大阴线 收阴且open-close大于5%
 
         # 买入条件 5. 成交量最大的一天(大于2倍平均值) 不可以收阴线
         max_vol = 0
@@ -345,6 +345,10 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
         #         green_cnt += 1
         # if red_cnt < (green_cnt*1.5):
         #     continue
+
+        # 买入条件 7. 当日收阴
+        if r['close'] > r['open']:
+            continue
 
 
         # 止损条件 1. 止损时点：ma20和ma30中间，目标是防止大阴线
