@@ -348,6 +348,8 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
             if r2['vol'] > max_vol:
                 max_vol = r2['vol']
                 is_red = r2['close'] > r2['open']
+        if red_days == 0:
+            continue
         avg_red_vol = red_total_vol / red_days
         if (max_vol > avg_red_vol * 1.5) and (not is_red):
             continue
@@ -390,6 +392,8 @@ def strategy_find_trend_B(stock_code, stock_name, stock_df, start_strategy_time,
                 break
         if not buy_flag_3:
             continue
+
+        # todo 买入条件 9. N日内处于20%区间 非常重要！！
 
 
         # 止损条件 1. 止损时点：ma20和ma30中间，目标是防止大阴线
