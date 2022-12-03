@@ -592,6 +592,8 @@ def strategy_back_to_ma(stock_code, stock_name, stock_df, start_strategy_time, e
         if max_green_vol>max_red_vol:
             continue
 
+        # todo 买入条件 7. 无连续穿越多个支撑点
+
 
         bs_df = bs_df.append(
             {'stock_code': stock_code, 'stock_name': stock_name, 'trade_date': r['trade_date']}, ignore_index=True)
@@ -768,7 +770,7 @@ def strategy_rise_high_vol_vs_down_low_vol(stock_code, stock_name, stock_df, sta
 
         # 条件1 当天必须是阴线
         if r['open'] < r['close']:
-            buy_flag_1 = False
+            continue
 
         # 条件2 5天内的vol比较
         rise_total_vol = 0
@@ -779,10 +781,6 @@ def strategy_rise_high_vol_vs_down_low_vol(stock_code, stock_name, stock_df, sta
         max_vol = 0
         for j in range(0,5):
             rt = stock_df.loc[i-j]
-            # 必须收盘收在10日线上
-            # if rt['close']<rt['close_ma10']:
-            #     buy_flag_2 = False
-            #     continue
 
             if rt['close']>rt['open']:
                 # 上涨
@@ -799,49 +797,101 @@ def strategy_rise_high_vol_vs_down_low_vol(stock_code, stock_name, stock_df, sta
                 if rt['chg']<-4:
                     buy_flag_2 = False
 
-        if down_days > 1 or down_days == 0:
-            buy_flag_2 = False
-        else:
-            buy_flag_2 = True
+        if down_days > 4 or down_days == 0:
+            continue
 
         if rise_days*down_days!=0 and (down_total_vol / down_days) / (rise_total_vol / rise_days) > 0.7:
-            buy_flag_3 = False
+            continue
 
-        # 最大交易量那天 必须是上涨
-        if max_vol<0:
-            buy_flag_3 = False
-
-
+        # 条件3 5天内 最大交易量必须红 最小交易量为绿 并且至少是1.5倍
+        max_red_vol = 0
+        max_green_vol = 0
+        for j in range(0,5):
+            rt = stock_df.loc[i-j]
+            if rt['close'] > rt['open']:
+                max_red_vol = max_red_vol if max_red_vol>rt['vol'] else rt['vol']
+            else:
+                max_green_vol = max_green_vol if max_green_vol > rt['vol'] else rt['vol']
+        if max_red_vol < max_green_vol*2:
+            continue
 
         if buy_flag_1 and buy_flag_2 and buy_flag_3 and (last_bs_type != 'B'):
             last_bs_type = 'B'
-            last_buy_price = r['close']
-            bs_df = bs_df.append({'stock_code':stock_code, 'stock_name':stock_name, 'trade_date':r['trade_date'], 'price':r['close'], 'type':'B'}, ignore_index=True)
+            bs_df = bs_df.append({'stock_code':stock_code, 'stock_name':stock_name, 'trade_date':r['trade_date']}, ignore_index=True)
+
+    return bs_df
 
 
-        # sell
 
-        # 触达止损点 卖出   止损设置在-7%
-        sell_flag_1 = r['low'] < last_buy_price * 0.93
-        if sell_flag_1:
-            sell_price = r['low']
-        # 收益达到 5% 卖出
-        sell_flag_2 = (last_buy_price!=0) and r['close'] > last_buy_price * 1.05
-        if sell_flag_2:
-            sell_price = last_buy_price * 1.07
+def strategy_week_3_red(stock_code, stock_name, stock_df, start_strategy_time, end_strategy_time):
+    # 买卖记录点
+    bs_df = pd.DataFrame(columns=['stock_code', 'stock_name', 'trade_date', 'close', 'price', 'type'])
 
-        if last_bs_type == 'B':
-            if sell_flag_1 or sell_flag_2:
-                last_bs_type = 'S'
-                last_buy_price = 0
-                bs_df = bs_df.append({'stock_code': stock_code, 'stock_name':stock_name, 'trade_date': r['trade_date'], 'price': sell_price, 'type': 'S'}, ignore_index=True)
+    if len(stock_df) < 10:
+        return bs_df
 
+    #  先计算周数
+    stock_df['week'] = stock_df['trade_date'].apply(lambda x: x.isocalendar()[1])
+    #  直接更新到每周的df
+    week_df = pd.DataFrame()
 
-    # 最后一天作为卖出
-    if last_bs_type == 'B':
-        r = stock_df.iloc[-1]
-        bs_df = bs_df.append(
-            {'stock_code': stock_code, 'stock_name':stock_name, 'trade_date': '--', 'price': r['close'], 'type': 'S'}, ignore_index=True)
+    cur_week = 999
+    last_week_close = 0
+    # 上上周 用来计算chg
+    last_last_week_close = 0
+    last_trade_date = None
+    last_week_open = 0
+    last_chg = 0
+
+    stock_df = stock_df[stock_df['trade_date'] >= start_strategy_time]
+    stock_df = stock_df[stock_df['trade_date'] <= end_strategy_time]
+
+    for i in stock_df.index:
+        r = stock_df.loc[i]
+
+        if cur_week == r['week']:
+            last_week_close = r['close']
+            last_trade_date = r['trade_date']
+            continue
+
+        # 新的一周  只记录开盘价格
+        last_chg = last_week_close / last_last_week_close -1 if last_last_week_close else 0
+        week_df = week_df.append({'week': r['week'], 'trade_date': last_trade_date, 'open': last_week_open, 'close': last_week_close, 'chg': last_chg}, ignore_index=True)
+        cur_week = r['week']
+        last_week_open = r['open']
+        last_last_week_close = last_week_close
+
+    week_df.reset_index(inplace = True)
+
+    for i in week_df.index:
+        if i <= 10:
+            continue
+
+        r = week_df.loc[i]
+        r1 = week_df.loc[i-1]
+        r2 = week_df.loc[i-2]
+
+        # 条件1. 判断连阳
+        buy_flag_1 = False
+        if r['close'] > r['open'] and r1['close'] > r1['open'] and r2['close'] > r2['open']:
+            buy_flag_1 = True
+
+        # 条件2. 三周涨幅不能高于30%
+        if r['chg'] + r1['chg'] + r2['chg'] > 0.33:
+            continue
+
+        # 条件3 需要在均线上
+        ma5 = ma_i(week_df, 'close', 5, i)
+        ma10 = ma_i(week_df, 'close', 10, i)
+
+        # todo 三连阳后 微微阴线 且vol平均值小
+
+        if r['close']<ma5 or ma5<ma10:
+            continue
+
+        if buy_flag_1:
+            bs_df = bs_df.append({'stock_code': stock_code, 'stock_name': stock_name, 'trade_date': r['trade_date']},
+                                 ignore_index=True)
 
     return bs_df
 
@@ -958,22 +1008,22 @@ def filter_strategy(strategy, strategy_name, start_strategy_time, end_strategy_t
 
     # 写本次文件
     bs_df_total.to_csv(save_dir + strategy_name + '_bs_df_total.csv', index=False, sep=',', encoding='utf-8-sig')
-    # 计算差异
-    diff_df = pd.DataFrame()
-    bs_df_total = bs_df_total.reset_index()
-    for i in bs_df_total.index:
-        r = bs_df_total.loc[i]
-        d=r['trade_date']
-        key = r['stock_code']
-        if key not in latest_set:
-            diff_df = diff_df.append(r)
-    diff_df.to_csv(save_dir + strategy_name + '_bs_df_diff.csv', index=False, sep=',', encoding='utf-8-sig')
+    # 计算差异 生成diff
+    # diff_df = pd.DataFrame()
+    # bs_df_total = bs_df_total.reset_index()
+    # for i in bs_df_total.index:
+    #     r = bs_df_total.loc[i]
+    #     d=r['trade_date']
+    #     key = r['stock_code']
+    #     if key not in latest_set:
+    #         diff_df = diff_df.append(r)
+    # diff_df.to_csv(save_dir + strategy_name + '_bs_df_diff.csv', index=False, sep=',', encoding='utf-8-sig')
 
 
 
 
-    bs_df_total = bs_df_total[bs_df_total['trade_date']<end_strategy_time]
-    bs_df_total.to_csv(save_dir + strategy_name + '_bs_df_add.csv', index=False, sep=',', encoding='utf-8-sig')
+    # bs_df_total = bs_df_total[bs_df_total['trade_date']<end_strategy_time]
+    # bs_df_total.to_csv(save_dir + strategy_name + '_bs_df_add.csv', index=False, sep=',', encoding='utf-8-sig')
 
     # bs_df_total.to_csv(save_dir+strategy_name+'_bs_df_total.csv', index=False, sep=',', encoding='utf-8-sig')
 
@@ -981,8 +1031,8 @@ def filter_strategy(strategy, strategy_name, start_strategy_time, end_strategy_t
 
 
     # 结果输出
-    print('total_profit_ratio {}'.format({cash_df['profit_ratio'].sum()}))
-    print('total_profit_ratio {}'.format({cash_df['profit_ratio'].sum()}))
+    # print('total_profit_ratio {}'.format({cash_df['profit_ratio'].sum()}))
+    # print('total_profit_ratio {}'.format({cash_df['profit_ratio'].sum()}))
 
 
     return bs_df

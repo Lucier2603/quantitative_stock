@@ -2,7 +2,7 @@ import tushare
 
 from strategy.special_flag import deviation_degree_on_ma10
 from strategy.strategy_deprecated import strategy_big_rise_after_big_fail
-from strategy.strategy_stock import filter_strategy, strategy_more_than_ma_30, strategy_rise_high_vol_vs_down_low_vol, \
+from strategy.strategy_stock import strategy_week_3_red, filter_strategy, strategy_more_than_ma_30, strategy_rise_high_vol_vs_down_low_vol, \
     strategy_after_big_increase, strategy_find_trend_A, strategy_find_trend_B, strategy_back_to_ma
 from ts.stock_crawler import update_month_stock_price_ts, update_daily_index_price, update_daily_etf_price
 from ts.stock_data_service import get_max_stock_rcd_date
@@ -33,8 +33,9 @@ if __name__ == '__main__':
     # 指定日期范围
     start_strategy_time = datetime.date.today() + datetime.timedelta(days=-2)
     end_strategy_time = datetime.date.today()
-    # start_strategy_time = datetime.date(2022, 11, 7)
+    # start_strategy_time = datetime.date(2022, 7, 30)
     # end_strategy_time = datetime.date(2022, 11, 10)
+    start_strategy_week_time = end_strategy_time + datetime.timedelta(days=-105)
 
 
 
@@ -43,13 +44,15 @@ if __name__ == '__main__':
     # 寻找趋势 A  (20日趋势线)
     # filter_strategy(strategy_find_trend_A, '寻找趋势A', start_strategy_time, end_strategy_time)
     # 寻找趋势 B  (简单策略：20日都在10日线上)
-    filter_strategy(strategy_find_trend_B, '寻找趋势B', start_strategy_time, end_strategy_time)
+    # filter_strategy(strategy_find_trend_B, '寻找趋势B', start_strategy_time, end_strategy_time)
     # 策略 缩量回调到ma20 ma30
     # filter_strategy(strategy_back_to_ma, '均线回调', start_strategy_time, end_strategy_time)
     # 大阳后小幅回调
     # filter_strategy(strategy_after_big_increase, '大阳回调', start_strategy_time, end_strategy_time)
     # 交易量 阳大阴小
     # filter_strategy(strategy_rise_high_vol_vs_down_low_vol, '交易量阳大阴小', start_strategy_time, end_strategy_time)
+    # 周线三连阳
+    filter_strategy(strategy_week_3_red, '周线三连阳', start_strategy_week_time, end_strategy_time)
     # 小阳堆积
     # filter_strategy(strategy_successive_small_up, '小阳堆积', start_strategy_time, end_strategy_time)
 
