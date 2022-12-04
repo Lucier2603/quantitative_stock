@@ -764,9 +764,9 @@ def strategy_rise_high_vol_vs_down_low_vol(stock_code, stock_name, stock_df, sta
         # ma_vol_30 = ma_i(stock_df, 'vol', 30, i)
 
         # buy
-        buy_flag_1 = True
-        buy_flag_2 = True
-        buy_flag_3 = True
+        buy_flag_1 = False
+        # buy_flag_2 = True
+        # buy_flag_3 = True
 
         # 条件1 当天必须是阴线
         if r['open'] < r['close']:
@@ -815,9 +815,18 @@ def strategy_rise_high_vol_vs_down_low_vol(stock_code, stock_name, stock_df, sta
         if max_red_vol < max_green_vol*2:
             continue
 
-        # todo 条件5 正好回调到5 10 20日线
+        # 条件5 正好回调到5 10 20日线
+        ma5 = ma_i(week_df, 'close', 5, i)
+        ma10 = ma_i(week_df, 'close', 10, i)
+        ma20 = ma_i(week_df, 'close', 20, i)
+        chg_ma5 =  r['close']/ma5
+        chg_ma10 =  r['close']/ma10
+        chg_ma20 =  r['close']/ma20
 
-        if buy_flag_1 and buy_flag_2 and buy_flag_3 and (last_bs_type != 'B'):
+        if (chg_ma5<1.02 and chg_ma5>0.98) or (chg_ma10<1.04 and chg_ma10>0.96) or (chg_ma20<1.05 and chg_ma20>0.95):
+            buy_flag_1 = True
+
+        if buy_flag_1:
             last_bs_type = 'B'
             bs_df = bs_df.append({'stock_code':stock_code, 'stock_name':stock_name, 'trade_date':r['trade_date']}, ignore_index=True)
 
