@@ -815,6 +815,8 @@ def strategy_rise_high_vol_vs_down_low_vol(stock_code, stock_name, stock_df, sta
         if max_red_vol < max_green_vol*2:
             continue
 
+        # todo 条件5 正好回调到5 10 20日线
+
         if buy_flag_1 and buy_flag_2 and buy_flag_3 and (last_bs_type != 'B'):
             last_bs_type = 'B'
             bs_df = bs_df.append({'stock_code':stock_code, 'stock_name':stock_name, 'trade_date':r['trade_date']}, ignore_index=True)
