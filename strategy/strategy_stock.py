@@ -841,7 +841,9 @@ def strategy_week_3_red(stock_code, stock_name, stock_df, start_strategy_time, e
     last_last_week_close = 0
     last_trade_date = None
     last_week_open = 0
-    last_chg = 0
+    # 上周的交易日数量 用来计算日均vol
+    last_week_days = 0
+    last_week_vols = 0
 
     stock_df = stock_df[stock_df['trade_date'] >= start_strategy_time]
     stock_df = stock_df[stock_df['trade_date'] <= end_strategy_time]
@@ -852,14 +854,19 @@ def strategy_week_3_red(stock_code, stock_name, stock_df, start_strategy_time, e
         if cur_week == r['week']:
             last_week_close = r['close']
             last_trade_date = r['trade_date']
+            last_week_days += 1
+            last_week_vols += r['vol']
             continue
 
         # 新的一周  只记录开盘价格
         last_chg = last_week_close / last_last_week_close -1 if last_last_week_close else 0
-        week_df = week_df.append({'week': r['week'], 'trade_date': last_trade_date, 'open': last_week_open, 'close': last_week_close, 'chg': last_chg}, ignore_index=True)
+        last_avg_vol = last_week_vols / last_week_days if last_week_days else 0
+        week_df = week_df.append({'week': r['week'], 'trade_date': last_trade_date, 'open': last_week_open, 'close': last_week_close, 'chg': last_chg, 'days': last_week_days, 'avg_vol': last_avg_vol}, ignore_index=True)
         cur_week = r['week']
         last_week_open = r['open']
         last_last_week_close = last_week_close
+        last_week_days = 1
+        last_week_vols = r['vol']
 
     week_df.reset_index(inplace = True)
 
@@ -870,24 +877,44 @@ def strategy_week_3_red(stock_code, stock_name, stock_df, start_strategy_time, e
         r = week_df.loc[i]
         r1 = week_df.loc[i-1]
         r2 = week_df.loc[i-2]
+        r3 = week_df.loc[i-3]
+        r4 = week_df.loc[i-4]
 
-        # 条件1. 判断连阳
-        buy_flag_1 = False
-        if r['close'] > r['open'] and r1['close'] > r1['open'] and r2['close'] > r2['open']:
-            buy_flag_1 = True
-
-        # 条件2. 三周涨幅不能高于30%
-        if r['chg'] + r1['chg'] + r2['chg'] > 0.33:
+        # 条件1. 前四周最多只能下跌一周
+        buy_flag_1 = True
+        green_count = 0
+        for j in range(1,5):
+            rj = week_df.loc[i-j]
+            if rj['close']/rj['open'] < 0.995:
+                green_count += 1
+        if green_count > 1:
             continue
 
+        # 条件2. 本周涨幅应该介于 -12以内
+        if r['close']/r1['close'] < 0.88 or r['close']/r1['close'] > 1.05:
+            continue
+
+        # 条件2. 前四周 至少有一周,涨幅大于10%  至少有两周,涨幅大于13%
+        if r1['chg']<0.1 and r2['chg']<0.1 and r3['chg']<0.1 and r4['chg']<0.1:
+            continue
+        tmp_chg = 0
+        tmp_chg = max(r1['chg']+r2['chg'], tmp_chg)
+        tmp_chg = max(r2['chg']+r3['chg'], tmp_chg)
+        tmp_chg = max(r3['chg']+r4['chg'], tmp_chg)
+        if tmp_chg<0.13:
+            continue
+
+
         # 条件3 需要在均线上
+        # todo 均线拉开差距
         ma5 = ma_i(week_df, 'close', 5, i)
         ma10 = ma_i(week_df, 'close', 10, i)
 
+        if r['close']<ma5*0.99 or ma5<ma10*1.05:
+            continue
+
         # todo 三连阳后 微微阴线 且vol平均值小
 
-        if r['close']<ma5 or ma5<ma10:
-            continue
 
         if buy_flag_1:
             bs_df = bs_df.append({'stock_code': stock_code, 'stock_name': stock_name, 'trade_date': r['trade_date']},

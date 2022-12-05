@@ -31,11 +31,11 @@ if __name__ == '__main__':
     # update_daily_etf_price(p_start_date, p_end_date, pro)
 
     # 指定日期范围
-    start_strategy_time = datetime.date.today() + datetime.timedelta(days=-2)
+    start_strategy_time = datetime.date.today() + datetime.timedelta(days=-3)
     end_strategy_time = datetime.date.today()
-    # start_strategy_time = datetime.date(2022, 7, 30)
+    # start_strategy_time = datetime.date(2022, 1, 30)
     # end_strategy_time = datetime.date(2022, 11, 10)
-    start_strategy_week_time = end_strategy_time + datetime.timedelta(days=-105)
+    start_strategy_week_time = end_strategy_time + datetime.timedelta(days=-200)
 
 
 
@@ -44,13 +44,13 @@ if __name__ == '__main__':
     # 寻找趋势 A  (20日趋势线)
     # filter_strategy(strategy_find_trend_A, '寻找趋势A', start_strategy_time, end_strategy_time)
     # 寻找趋势 B  (简单策略：20日都在10日线上)
-    # filter_strategy(strategy_find_trend_B, '寻找趋势B', start_strategy_time, end_strategy_time)
+    filter_strategy(strategy_find_trend_B, '寻找趋势B', start_strategy_time, end_strategy_time)
     # 策略 缩量回调到ma20 ma30
-    # filter_strategy(strategy_back_to_ma, '均线回调', start_strategy_time, end_strategy_time)
+    filter_strategy(strategy_back_to_ma, '均线回调', start_strategy_time, end_strategy_time)
     # 大阳后小幅回调
-    # filter_strategy(strategy_after_big_increase, '大阳回调', start_strategy_time, end_strategy_time)
+    filter_strategy(strategy_after_big_increase, '大阳回调', start_strategy_time, end_strategy_time)
     # 交易量 阳大阴小
-    # filter_strategy(strategy_rise_high_vol_vs_down_low_vol, '交易量阳大阴小', start_strategy_time, end_strategy_time)
+    filter_strategy(strategy_rise_high_vol_vs_down_low_vol, '交易量阳大阴小', start_strategy_time, end_strategy_time)
     # 周线三连阳
     filter_strategy(strategy_week_3_red, '周线三连阳', start_strategy_week_time, end_strategy_time)
     # 小阳堆积
