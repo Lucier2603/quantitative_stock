@@ -816,12 +816,12 @@ def strategy_rise_high_vol_vs_down_low_vol(stock_code, stock_name, stock_df, sta
             continue
 
         # 条件5 正好回调到5 10 20日线
-        ma5 = ma_i(week_df, 'close', 5, i)
-        ma10 = ma_i(week_df, 'close', 10, i)
-        ma20 = ma_i(week_df, 'close', 20, i)
-        chg_ma5 =  r['close']/ma5
-        chg_ma10 =  r['close']/ma10
-        chg_ma20 =  r['close']/ma20
+        ma5 = ma_i(stock_df, 'close', 5, i)
+        ma10 = ma_i(stock_df, 'close', 10, i)
+        ma20 = ma_i(stock_df, 'close', 20, i)
+        chg_ma5 = r['close']/ma5
+        chg_ma10 = r['close']/ma10
+        chg_ma20 = r['close']/ma20
 
         if (chg_ma5<1.02 and chg_ma5>0.98) or (chg_ma10<1.04 and chg_ma10>0.96) or (chg_ma20<1.05 and chg_ma20>0.95):
             buy_flag_1 = True

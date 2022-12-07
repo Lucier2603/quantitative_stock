@@ -53,6 +53,7 @@ if __name__ == '__main__':
     filter_strategy(strategy_rise_high_vol_vs_down_low_vol, '交易量阳大阴小', start_strategy_time, end_strategy_time)
     # 周线三连阳
     filter_strategy(strategy_week_3_red, '周线三连阳', start_strategy_week_time, end_strategy_time)
+    # todo 寻找成交量较之前放大的阳线
     # 小阳堆积
     # filter_strategy(strategy_successive_small_up, '小阳堆积', start_strategy_time, end_strategy_time)
 
