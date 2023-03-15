@@ -1,6 +1,8 @@
 
 import pandas as pd
 import numpy as np
+from sklearn.preprocessing import MinMaxScaler
+import torch
 
 
 
@@ -74,10 +76,31 @@ def create_train_data(index_code):
     # normalization
     seq = (seq - seq.mean(axis=0)) / seq.std(axis=0)
 
+
+
+    # inp_dim 训练的维度
+    inp_dim = 3
+    # mid_dim 三个门的宽度?
+    mid_dim = 3
+    # num_layers 是使用两个LSTM对数据进行预测，然后将他们的输出堆叠起来。
+    num_layers = 2
+    rnn = torch.nn.LSTM(inp_dim, mid_dim, num_layers)
+
+    input = torch.randn(seq_len, batch_size, inp_dim)
+    output = rnn(input)
+
     print(1)
 
 
 
+def eg1():
+
+    # 标准化
+    scaler = MinMaxScaler(feature_range=(-1, 1))
+    train_data_normalized = scaler.fit_transform(train_data.reshape(-1, 1))
+
+    # PyTorch模型是使用张量训练的。要将数据集转换为张量，我们可以简单地将数据集传递给FloatTensor对象的构造函数
+    train_data_normalized = torch.FloatTensor(train_data_normalized).view(-1)
 
 
 
