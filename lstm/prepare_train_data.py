@@ -4,6 +4,8 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 import torch
 from torch import nn
+import torch.optim as optim
+
 
 
 
@@ -22,39 +24,40 @@ def normalize(list):
 
 
 
-class LSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
-        super().__init__()
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.output_size = output_size
-        self.num_directions = 1 # 单向LSTM
-        self.lstm = nn.LSTM(input_size, hidden_size)
-        self.linear = nn.Linear(self.hidden_size, self.output_size)
+class RegLSTM(nn.Module):
+    def __init__(self, inp_dim, out_dim, mid_dim, mid_layers):
+        super(RegLSTM, self).__init__()
 
-    def forward(self, input_seq):
-        batch_size, seq_len = input_seq[0], input_seq[1]
-        h_0 = torch.randn(self.num_directions * self.num_layers, self.batch_size, self.hidden_size).to(device)
-        c_0 = torch.randn(self.num_directions * self.num_layers, self.batch_size, self.hidden_size).to(device)
-        # output(batch_size, seq_len, num_directions * hidden_size)
-        # todo 所以是先用lstm算一遍 再linear一下，得到pred值?
-        output, _ = self.lstm(input_seq, (h_0, c_0))
-        pred = self.linear(output)
-        pred = pred[:, -1, :]
-        return pred
+        # 每个值维度 隐藏层节点数量 层数
+        self.rnn = nn.LSTM(inp_dim, mid_dim, mid_layers)  # rnn
+        self.reg = nn.Sequential(
+            nn.Linear(mid_dim, mid_dim),
+            nn.Tanh(),
+            nn.Linear(mid_dim, out_dim),
+        )  # regression
 
+    def forward(self, x):
+        y = self.rnn(x)[0]  # y, (h, c) = self.rnn(x)
 
+        seq_len, batch_size, hid_dim = y.shape
+        y = y.view(-1, hid_dim)
+        y = self.reg(y)
+        y = y.view(seq_len, batch_size, -1)
+        return y
 
 
 
 
+
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # 每一行代表一天 y代表预测值 y之前的每一列数据代表一个维度
 def create_train_data(index_code):
     index_nav_df = get_index_daily_price_as_df(index_code, 'SSE')
 
     # 只需要最近5年的
-    index_nav_df = index_nav_df[['close','chg', 'vol']]
+    index_nav_df = index_nav_df[['close','chg', 'vol']].astype(float)
     index_nav_df = index_nav_df[-5*365:]
 
     chg_list = index_nav_df['chg'].tolist()
@@ -80,30 +83,40 @@ def create_train_data(index_code):
 
     # input_size, hidden_size, output_size, batch_size
     # model = LSTM(2, 32, 1, batch_size=args.batch_size).to(device)
-    model = LSTM(2, 32, 1)
+
+    # 每个值维度 3  1 隐藏层节点数量 8 层数 1
+    # net = RegLSTM(inp_dim, out_dim, mid_dim, mid_layers).to(device)
+    model = RegLSTM(2, 1, 16, 2).to(device)
     # loss_function = nn.MSELoss().to(device)
     loss_function = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+
+    model.to(device)
 
 
-    for i in range(0, len(train_seq)):
-        print(f"{i}/{len(train_seq)}")
+    for i in range(0, 200):
+        print(f"train {i}/{len(train_seq)}")
 
         model.zero_grad()
 
         train_ = train_seq[i]
         real_ = real_seq[i]
 
-        train_ = torch.FloatTensor(train_)
-        real_ = torch.FloatTensor(real_).view(-1)  # view -1 拉平到1维
+        train_ = torch.tensor(train_, device=device).float()
+        real_ = torch.tensor(real_, device=device).view(-1).float()  # view -1 拉平到1维
 
+        # 那个错误应该是这里的问题 这里输入是一个2维数据?
         score = model(train_)
+        score = score.float()
         loss = loss_function(score, real_)
 
         loss.backward()
         optimizer.step()
 
-
-    print(1)
+    train_ = train_seq[-1]
+    train_ = torch.tensor(train_, device=device)
+    tag_scores = model(inputs)
+    print(tag_scores)
 
 
 
