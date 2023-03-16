@@ -95,30 +95,41 @@ def train(args, Dtr, Val, path):
     else:
         model = LSTM(input_size, hidden_size, num_layers, output_size, batch_size=args.batch_size).to(device)
 
+    # todo 这个loss函数后面怎么使用
     loss_function = nn.MSELoss().to(device)
+
     if args.optimizer == 'adam':
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,
                                      weight_decay=args.weight_decay)
     else:
         optimizer = torch.optim.SGD(model.parameters(), lr=args.lr,
                                     momentum=0.9, weight_decay=args.weight_decay)
+
+
+    # StepLR 学习率
     scheduler = StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
     # training
     min_epochs = 10
     best_model = None
     min_val_loss = 5
+
+    # tqdm 进度条
+    # todo args.epochs ?
     for epoch in tqdm(range(args.epochs)):
         train_loss = []
         for (seq, label) in Dtr:
             seq = seq.to(device)
             label = label.to(device)
+
             y_pred = model(seq)
             loss = loss_function(y_pred, label)
+
             train_loss.append(loss.item())
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
+        # todo 这个step什么意思？上一个循环的Dtr，永远都是不变的？
         scheduler.step()
         # validation
         val_loss = get_val_loss(args, model, Val)
@@ -127,6 +138,8 @@ def train(args, Dtr, Val, path):
             best_model = copy.deepcopy(model)
 
         print('epoch {:03d} train_loss {:.8f} val_loss {:.8f}'.format(epoch, np.mean(train_loss), val_loss))
+
+        # todo ?
         model.train()
 
     state = {'models': best_model.state_dict()}
