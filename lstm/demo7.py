@@ -25,6 +25,8 @@ plt.show()
 # train-test split for time series
 train_size = int(len(timeseries) * 0.67)
 test_size = len(timeseries) - train_size
+
+# 都是df
 train, test = timeseries[:train_size], timeseries[train_size:]
 
 import torch
