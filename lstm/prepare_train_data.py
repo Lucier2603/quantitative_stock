@@ -81,7 +81,8 @@ def create_train_data(index_code):
 
         X_train.append(train_seq_2)
         # todo 1
-        y_train.append([[float(chg_list[i+15])]])
+        y_train.append([float(chg_list[i + seq])])
+        # y_train.append([[float(chg_list[i + seq])]])
 
     X_train = X_train[:1800]
     y_train = y_train[:1800]
@@ -92,46 +93,68 @@ def create_train_data(index_code):
 
     # 每个值维度 3  1 隐藏层节点数量 8 层数 1
     # net = RegLSTM(inp_dim, out_dim, mid_dim, mid_layers).to(device)
-    model = RegLSTM(2, 1, 16, 1).to(device)
+    model = RegLSTM().to(device)
     # loss_function = nn.MSELoss().to(device)
     loss_function = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
 
-    X_train = torch.tensor(X_train)
-    y_train = torch.tensor(y_train)
+    X_train = torch.tensor(X_train).reshape(-1, seq, 2).to(device)
+    y_train = torch.tensor(y_train).reshape(-1, 1).to(device)
+
+    test_X_train = torch.tensor(X_train[-50:]).reshape(-1, seq, 2).to(device)
+    test_y_train = torch.tensor(y_train[-50:]).reshape(-1, 1).to(device)
 
     print(X_train.shape)
     print(y_train.shape)
 
 
-    loader = data.DataLoader(data.TensorDataset(X_train, y_train), shuffle=False, batch_size=10)
+    # loader = data.DataLoader(data.TensorDataset(X_train, y_train), shuffle=False, batch_size=10)
 
 
-    model.to(device)
+    model = model.to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
+    loss_fun = nn.MSELoss()
+
+    model.train()
+    for epoch in range(300):
+        output = model(X_train)
+        loss = loss_fun(output, y_train)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        if epoch % 20 == 0 and epoch > 0:
+            test_loss = loss_fun(model(test_X_train), test_y_train)
+            print("epoch:{}, loss:{}, test_loss: {}".format(epoch, loss, test_loss))
 
 
-    for i in range(0, 200):
-        print(f"train {i}/{len(X_train)}")
 
-        # todo ???
-        model.train()
+    ret = model(test_X_train)
+    print(test_X_train.shape)
+    print(ret.shape)
 
-        for X_batch, y_batch in loader:
-            # print('=========================================')
-            # print(y_batch)
 
-            # print(f'X_batch: {X_batch.shape}')
-            y_pred = model(X_batch)
-
-            # print(y_pred)
-            # print('=========================================')
-
-            # print(f'y_pred: {y_pred.shape}')
-            # print(f'y_batch: {y_batch.shape}')
-            loss = loss_function(y_pred, y_batch)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+    # for i in range(0, 200):
+    #     print(f"train {i}/{len(X_train)}")
+    #
+    #     # todo ???
+    #     model.train()
+    #
+    #     for X_batch, y_batch in loader:
+    #         # print('=========================================')
+    #         # print(y_batch)
+    #
+    #         # print(f'X_batch: {X_batch.shape}')
+    #         y_pred = model(X_batch)
+    #
+    #         # print(y_pred)
+    #         # print('=========================================')
+    #
+    #         # print(f'y_pred: {y_pred.shape}')
+    #         # print(f'y_batch: {y_batch.shape}')
+    #         loss = loss_function(y_pred, y_batch)
+    #         optimizer.zero_grad()
+    #         loss.backward()
+    #         optimizer.step()
 
 
     torch.save(model, './m.pth')
