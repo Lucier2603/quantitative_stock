@@ -16,9 +16,6 @@ from ts.stock_data_service import get_index_daily_price_as_df
 
 def normalize(list):
     max_v, min_v = np.max(list), np.min(list)
-    # max_v = max(list)
-    # min_v = min(list)
-
     list = (list - min_v) / (max_v - min_v)
 
     return list
@@ -26,15 +23,15 @@ def normalize(list):
 
 seq = 15
 
-class RegLSTM(nn.Module):
+class RegLSTM(nn.Module, x_dim, y_dim):
     def __init__(self):
         super(RegLSTM, self).__init__()
 
-        # todo DataLoader返回数据时候一般第一维都是batch，pytorch的LSTM层默认输入和输出都是batch在第二维。
-        # lstm要求的入参顺序为（seq_len , btach_size , input_size）  seq是输入序列的长度 在这里应该是2？
+        # batch_first=True的意义
+        # DataLoader返回数据时候一般第一维都是batch，pytorch的LSTM层默认输入和输出都是batch在第二维。
+        # lstm要求的入参顺序为（seq_len , btach_size , input_size）  seq是输入序列的长度 在这里应该是15  batch_size应该是总样本数量
 
-
-        self.lstm = nn.LSTM(input_size=2, hidden_size=32, num_layers=1, batch_first=True)
+        self.lstm = nn.LSTM(input_size=x_dim, output_size=y_dim, hidden_size=32, num_layers=1, batch_first=True)
         # 输入格式是1，输出隐藏层大小是32
         # 对于小数据集num_layers不要设置大，否则会因为模型变复杂而导致效果会变差
         # num_layers顾名思义就是有几个lstm层，假如设置成2，就相当于连续经过两个lstm层
@@ -56,64 +53,78 @@ class RegLSTM(nn.Module):
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
 # 每一行代表一天 y代表预测值 y之前的每一列数据代表一个维度
 def create_train_data(index_code):
+    # step 1.1 获取最近8年的数据
     index_nav_df = get_index_daily_price_as_df(index_code, 'SSE')
-
-    # 只需要最近5年的
     index_nav_df = index_nav_df[['close','chg', 'vol']].astype(float)
-    index_nav_df = index_nav_df[-5*365:]
+    index_nav_df = index_nav_df[-8*365:]
 
-    chg_list = index_nav_df['chg'].tolist()
-    vol_list = index_nav_df['vol'].tolist()
+    # step 2.1 计算出x指标数据
+    x_raw_data = {}
+    x_raw_names = ['chg', 'vol']
+    x_raw_data['chg'] = index_nav_df['chg'].tolist()
+    x_raw_data['vol'] = index_nav_df['vol'].tolist()
 
-    chg_list = normalize(chg_list)
-    vol_list = normalize(vol_list)
+    # step 2.2 计算出y指标数据
+    y_raw_names = ['chg']
+    y_raw_data = index_nav_df['chg'].tolist()
 
-    # 构造输入数据和验证数据
-    X_train = []
-    y_train = []
+    x_dim = len(x_raw_names)
+    y_dim = len(y_raw_names)
 
-    for i in range(0, len(chg_list) - seq):
-        train_seq_2 = []
+    # step 2.2 数据标准化
+    for x_name in x_raw_names:
+        l = x_raw_data[x_name]
+        l = normalize(l)
+        x_raw_data[x_name] = l
+
+
+
+    # step 3.1 构造输入数据和验证数据
+    x_list = []
+    y_list = []
+    seq = 15
+
+    for i in range(0, len(index_nav_df)):
+        xp = []
+
+        # 一个样本有seq条数据点
         for j in range(i, i + seq):
-            train_seq_2.append([float(chg_list[j]), float(vol_list[j])])
+            # 一条数据点有n个维度的数据
+            x = []
+            for name in x_raw_names:
+                d = x_raw_data[name][j]
+                x.append(d)
 
-        X_train.append(train_seq_2)
-        # todo 1
-        y_train.append([float(chg_list[i + seq])])
-        # y_train.append([[float(chg_list[i + seq])]])
+            xp.append(x)
+        x_list.append(xp)
 
-    X_train = X_train[:1800]
-    y_train = y_train[:1800]
-    print(len(X_train))
+    y_list = y_raw_data
 
-    # input_size, hidden_size, output_size, batch_size
-    # model = LSTM(2, 32, 1, batch_size=args.batch_size).to(device)
 
-    # 每个值维度 3  1 隐藏层节点数量 8 层数 1
-    # net = RegLSTM(inp_dim, out_dim, mid_dim, mid_layers).to(device)
-    model = RegLSTM().to(device)
-    # loss_function = nn.MSELoss().to(device)
-    loss_function = nn.MSELoss()
+    # step 3.2 转换到tensor数据
+    x_list = x_list[:2700]
+    y_list = y_list[:2700]
+
+    x_train = x_list[:2100]
+    y_train = y_list[:2100]
+    x_test = x_list[2100:]
+    y_test = y_list[2100:]
+
+    X_train = torch.tensor(x_train).reshape(-1, seq, x_dim).to(device)
+    y_train = torch.tensor(y_train).reshape(-1, y_dim).to(device)
+
+
+    model = RegLSTM(x_dim, y_dim).to(device)
+    loss_function = nn.MSELoss().to(device)
+    # loss_function = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
-
-    X_train = torch.tensor(X_train).reshape(-1, seq, 2).to(device)
-    y_train = torch.tensor(y_train).reshape(-1, 1).to(device)
-
-    test_X_train = torch.tensor(X_train[-50:]).reshape(-1, seq, 2).to(device)
-    test_y_train = torch.tensor(y_train[-50:]).reshape(-1, 1).to(device)
-
-    print(X_train.shape)
-    print(y_train.shape)
-
-
-    # loader = data.DataLoader(data.TensorDataset(X_train, y_train), shuffle=False, batch_size=10)
-
 
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
-    loss_fun = nn.MSELoss()
+
 
     model.train()
     for epoch in range(300):
@@ -127,43 +138,9 @@ def create_train_data(index_code):
             print("epoch:{}, loss:{}, test_loss: {}".format(epoch, loss, test_loss))
 
 
-
     ret = model(test_X_train)
-    print(test_X_train.shape)
-    print(ret.shape)
-
-
-    # for i in range(0, 200):
-    #     print(f"train {i}/{len(X_train)}")
-    #
-    #     # todo ???
-    #     model.train()
-    #
-    #     for X_batch, y_batch in loader:
-    #         # print('=========================================')
-    #         # print(y_batch)
-    #
-    #         # print(f'X_batch: {X_batch.shape}')
-    #         y_pred = model(X_batch)
-    #
-    #         # print(y_pred)
-    #         # print('=========================================')
-    #
-    #         # print(f'y_pred: {y_pred.shape}')
-    #         # print(f'y_batch: {y_batch.shape}')
-    #         loss = loss_function(y_pred, y_batch)
-    #         optimizer.zero_grad()
-    #         loss.backward()
-    #         optimizer.step()
-
 
     torch.save(model, './m.pth')
-    # torch.save(model.state_dict(), './m.pth')
-
-    # train_ = train_seq[-1]
-    # train_ = torch.tensor(train_, device=device)
-    # tag_scores = model(inputs)
-    # print(tag_scores)
 
 
 
