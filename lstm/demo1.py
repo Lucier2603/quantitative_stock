@@ -117,11 +117,12 @@ def run_train_lstm():
     # 107
     train_size = int(len(data_x) * 0.75)
 
-    # 107 * 3
+    # train_x 107 * 3   train_y 107 * 1
     train_x = data_x[:train_size]
     train_y = data_y[:train_size]
     train_x = train_x.reshape((train_size, inp_dim))
     train_y = train_y.reshape((train_size, out_dim))
+    # train_x 107 * 3   train_y 107 * 1
 
     '''build model'''
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -134,6 +135,8 @@ def run_train_lstm():
     '''train'''
     var_x = torch.tensor(train_x, dtype=torch.float32, device=device)
     var_y = torch.tensor(train_y, dtype=torch.float32, device=device)
+    print(var_x.shape)  # 107*3
+    print(var_y.shape)  # 107*1
 
     batch_var_x = list()
     batch_var_y = list()

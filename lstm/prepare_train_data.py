@@ -24,28 +24,30 @@ def normalize(list):
     return list
 
 
+seq = 15
 
 class RegLSTM(nn.Module):
-    def __init__(self, inp_dim, out_dim, mid_dim, mid_layers):
+    def __init__(self):
         super(RegLSTM, self).__init__()
 
-        # 每个值维度 隐藏层节点数量 层数
-        self.rnn = nn.LSTM(inp_dim, mid_dim, mid_layers)  # rnn
-        self.reg = nn.Linear(mid_dim, out_dim)
-        # self.reg = nn.Sequential(
-        #     nn.Linear(mid_dim, mid_dim),
-        #     nn.Tanh(),
-        #     nn.Linear(mid_dim, out_dim),
-        # )  # regression
+        # todo DataLoader返回数据时候一般第一维都是batch，pytorch的LSTM层默认输入和输出都是batch在第二维。
+        # lstm要求的入参顺序为（seq_len , btach_size , input_size）  seq是输入序列的长度 在这里应该是2？
+
+
+        self.lstm = nn.LSTM(input_size=2, hidden_size=32, num_layers=1, batch_first=True)
+        # 输入格式是1，输出隐藏层大小是32
+        # 对于小数据集num_layers不要设置大，否则会因为模型变复杂而导致效果会变差
+        # num_layers顾名思义就是有几个lstm层，假如设置成2，就相当于连续经过两个lstm层
+        # 原来的输入格式是：(seq, batch, shape)
+        # 设置batch_first=True以后，输入格式就可以改为：(batch, seq, shape)，更符合平常使用的习惯
+        # todo 为什么是32*seq
+        self.linear = nn.Linear(32 * seq, 1)
 
     def forward(self, x):
-        y = self.rnn(x)[0]  # y, (h, c) = self.rnn(x)
-
-        seq_len, batch_size, hid_dim = y.shape
-        y = y.view(-1, hid_dim)
-        y = self.reg(y)
-        y = y.view(seq_len, batch_size, -1)
-        return y
+        x, (h, c) = self.lstm(x)
+        x = x.reshape(-1, 32*seq)
+        x = self.linear(x)
+        return x
 
 
 
@@ -72,12 +74,13 @@ def create_train_data(index_code):
     X_train = []
     y_train = []
 
-    for i in range(0, len(chg_list) - 16):
+    for i in range(0, len(chg_list) - seq):
         train_seq_2 = []
-        for j in range(i, i+15):
+        for j in range(i, i + seq):
             train_seq_2.append([float(chg_list[j]), float(vol_list[j])])
 
         X_train.append(train_seq_2)
+        # todo 1
         y_train.append([[float(chg_list[i+15])]])
 
     X_train = X_train[:1800]
@@ -89,7 +92,7 @@ def create_train_data(index_code):
 
     # 每个值维度 3  1 隐藏层节点数量 8 层数 1
     # net = RegLSTM(inp_dim, out_dim, mid_dim, mid_layers).to(device)
-    model = RegLSTM(2, 1, 16, 2).to(device)
+    model = RegLSTM(2, 1, 16, 1).to(device)
     # loss_function = nn.MSELoss().to(device)
     loss_function = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
@@ -197,5 +200,5 @@ def test(index_code):
         
 
 if __name__ == '__main__':
-    # create_train_data('000905.SH')
-    test('000905.SH')
+    create_train_data('000905.SH')
+    # test('000905.SH')
