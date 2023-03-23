@@ -172,6 +172,8 @@ def pre_process(index_nav_df):
 
 
     # 2. x指标
+    # 跌破均线次数 and 放量长上影or下跌 and 放量反包 & 标志性大阴大阳
+    
 
 
     # 3. y指标
