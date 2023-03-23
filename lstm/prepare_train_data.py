@@ -165,15 +165,16 @@ def pre_process(index_nav_df):
     index_nav_df['close_ma10'] = index_nav_df['close'].rolling(window = 10).mean()
     index_nav_df['close_ma20'] = index_nav_df['close'].rolling(window = 20).mean()
 
-    # 1.2 当日收盘价 与 ma5 10 20的chg
+    # 2. x指标
+    # 跌破均线次数 and 放量长上影or下跌 and 放量反包 & 标志性大阴大阳
+    # 2.1 当日收盘价 与 均线 距离
     index_nav_df['close_to_ma5_chg'] = index_nav_df['close'] / index_nav_df['close_ma5'] - 1
     index_nav_df['close_to_ma10_chg'] = index_nav_df['close'] / index_nav_df['close_ma10'] - 1
     index_nav_df['close_to_ma20_chg'] = index_nav_df['close'] / index_nav_df['close_ma20'] - 1
 
+    # 2.2 放量长上影
 
-    # 2. x指标
-    # 跌破均线次数 and 放量长上影or下跌 and 放量反包 & 标志性大阴大阳
-    
+
 
 
     # 3. y指标
