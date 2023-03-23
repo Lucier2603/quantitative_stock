@@ -84,7 +84,6 @@ def create_train_data(index_code):
     y_raw_data = [float(x) for x in y_raw_data]
 
 
-
     # step 3.1 构造输入数据和验证数据
     print('step 3.1 build data')
     x_list = []
@@ -107,7 +106,6 @@ def create_train_data(index_code):
 
     y_list = y_raw_data
 
-
     # step 3.2 转换到tensor数据
     x_list = x_list[:2700]
     y_list = y_list[:2700]
@@ -115,12 +113,16 @@ def create_train_data(index_code):
     x_train = x_list[:2100]
     y_train = y_list[:2100]
     x_test = x_list[2100:]
-    y_test = y_list[2100:]
+    y_test = y_list[2100:len(x_list)]
 
     X_train = torch.tensor(x_train).reshape(-1, seq, x_dim).to(device)
     y_train = torch.tensor(y_train).reshape(-1, y_dim).to(device)
     X_test = torch.tensor(x_test).reshape(-1, seq, x_dim).to(device)
     y_test = torch.tensor(y_test).reshape(-1, y_dim).to(device)
+    print(X_train.shape)
+    print(y_train.shape)
+    print(X_test.shape)
+    print(y_test.shape)
 
 
     # step 4.1 训练
@@ -143,67 +145,10 @@ def create_train_data(index_code):
             test_loss = loss_fun(model(X_test), y_test)
             print("epoch:{}, loss:{}, test_loss: {}".format(epoch, loss, test_loss))
 
-
-    ret = model(test_X_train)
-
     torch.save(model, './m.pth')
 
 
 
-
-
-def test(index_code):
-    index_nav_df = get_index_daily_price_as_df(index_code, 'SSE')
-
-    # 只需要最近5年的
-    index_nav_df = index_nav_df[['close','chg', 'vol']].astype(float)
-    index_nav_df = index_nav_df[-5*365:]
-
-    chg_list = index_nav_df['chg'].tolist()
-    vol_list = index_nav_df['vol'].tolist()
-
-    chg_list = normalize(chg_list)
-    vol_list = normalize(vol_list)
-
-    # 构造输入数据和验证数据
-    X_train = []
-    y_train = []
-
-    for i in range(0, len(chg_list) - 16):
-        train_seq_2 = []
-        for j in range(i, i+15):
-            train_seq_2.append([float(chg_list[j]), float(vol_list[j])])
-
-        X_train.append(train_seq_2)
-        y_train.append([[float(chg_list[i+15])]])
-
-    # todo ???
-    # model = RegLSTM(2, 1, 16, 2).to(device)
-    # model.load_state_dict(torch.load('./m.pth', map_location=lambda storage, loc: storage))
-    # net = model.eval()
-    model = torch.load('./m.pth')
-
-    model = model.eval()
-
-    X_train = torch.tensor(X_train)
-    y_train = torch.tensor(y_train)
-
-    print(X_train.shape)
-    print(y_train.shape)
-
-
-    loader = data.DataLoader(data.TensorDataset(X_train, y_train), shuffle=False, batch_size=10)
-
-
-    model.to(device)
-
-    for X_batch, y_batch in loader:
-        # print(f'X_batch: {X_batch.shape}')
-        # print(X_batch)
-        y_pred = model(X_batch)
-
-        print(y_pred)
-        
 
 if __name__ == '__main__':
     create_train_data('000905.SH')
