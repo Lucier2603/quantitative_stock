@@ -56,11 +56,14 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 # 每一行代表一天 y代表预测值 y之前的每一列数据代表一个维度
-def create_train_data(index_code):
+def train(index_code):
     # step 1.1 获取最近8年的数据
     index_nav_df = get_index_daily_price_as_df(index_code, 'SSE')
-    index_nav_df = index_nav_df[['close','chg', 'vol']].astype(float)
     index_nav_df = index_nav_df[-8*365:]
+
+
+    # step 2.0 预处理
+    index_nav_df = pre_process(index_nav_df)
 
     # step 2.1 计算出x指标数据
     x_raw_data = {}
@@ -148,8 +151,43 @@ def create_train_data(index_code):
     torch.save(model, './m.pth')
 
 
+# 预先处理数据
+def pre_process(index_nav_df):
+    index_nav_df = index_nav_df[['trade_date', 'open', 'high', 'low', 'close', 'chg', 'vol', 'amount']]
+    index_nav_df['trade_date'] = index_nav_df['trade_date'].apply(lambda x: x.strftime('%Y-%m-%d'))
+    index_nav_df.set_index('trade_date', drop=True, inplace=True)
+
+    index_nav_df = index_nav_df.astype(float)
+
+    # 1. 基础指标
+    # 1.1 当日结束后的ma5 ma10 ma20
+    index_nav_df['close_ma5'] = index_nav_df['close'].rolling(window = 5).mean()
+    index_nav_df['close_ma10'] = index_nav_df['close'].rolling(window = 10).mean()
+    index_nav_df['close_ma20'] = index_nav_df['close'].rolling(window = 20).mean()
+
+    # 1.2 当日收盘价 与 ma5 10 20的chg
+    index_nav_df['close_to_ma5_chg'] = index_nav_df['close'] / index_nav_df['close_ma5'] - 1
+    index_nav_df['close_to_ma10_chg'] = index_nav_df['close'] / index_nav_df['close_ma10'] - 1
+    index_nav_df['close_to_ma20_chg'] = index_nav_df['close'] / index_nav_df['close_ma20'] - 1
+
+
+    # 2. x指标
+
+
+    # 3. y指标
+    # 3.1 5日 10日 20日后的ma5 ma10 ma20
+    index_nav_df['y_close_ma5'] = index_nav_df['close_ma5'].shift(-5)
+    index_nav_df['y_close_ma10'] = index_nav_df['close_ma10'].shift(-10)
+
+    # 3.2 3.1中指标 相对 当日对应均线的 chg
+    index_nav_df['y_close_ma5_chg'] = index_nav_df['close_ma5'] / index_nav_df['y_close_ma5'] - 1
+    index_nav_df['y_close_ma10_chg'] = index_nav_df['close_ma10'] / index_nav_df['y_close_ma10'] - 1
+
+
+    return index_nav_df
+
 
 
 if __name__ == '__main__':
-    create_train_data('000905.SH')
+    train('000905.SH')
     # test('000905.SH')
