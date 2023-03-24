@@ -172,7 +172,11 @@ def pre_process(index_nav_df):
     index_nav_df['close_to_ma10_chg'] = index_nav_df['close'] / index_nav_df['close_ma10'] - 1
     index_nav_df['close_to_ma20_chg'] = index_nav_df['close'] / index_nav_df['close_ma20'] - 1
 
-    # 2.2 放量长上影
+    # 2.2 长上影or长下影 以0.04为界限
+    # 实际这里不能算是上下影线 其中， 最高价-收盘价 压力标志   收盘价-最低价 支撑标志
+    index_nav_df['long_up_shadow'] = index_nav_df['high'] / index_nav_df['close'] - 1
+    index_nav_df['long_down_shadow'] = index_nav_df['low'] / index_nav_df['close'] - 1
+
 
 
 
